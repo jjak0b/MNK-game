@@ -138,7 +138,7 @@ public class MyPlayer implements MNKPlayer {
             float eval = isMyTurn ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
             // System.out.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
 
-            MNKCell[] candidates = getCellCandidates( FC );
+            MNKCell[] candidates = getCellCandidates( tree, FC );
             // System.out.println( Arrays.toString( candidates ) );
             for ( MNKCell unmarkedCell : candidates ) {
                 mark( tree, unmarkedCell, depth);
@@ -193,10 +193,12 @@ public class MyPlayer implements MNKPlayer {
         }
         // System.out.println( Arrays.toString( filter.toArray() ) );
     }
-    private MNKCell[] getCellCandidates( MNKCell[] FC ) {
+    private MNKCell[] getCellCandidates( MNKBoard board, MNKCell[] FC ) {
         // first should be cells that are in sequence that have 1 move left to win
         // after should be cells that are in sequence that have 2 move left to win
         // TODO: use priority queue for this
+        PriorityQueue<MNKCell> queue = new PriorityQueue<MNKCell>( FC.length );
+
         return FC;
     }
 
