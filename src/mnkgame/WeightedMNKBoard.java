@@ -51,10 +51,15 @@ public class WeightedMNKBoard extends MNKBoard {
      * @throws IllegalStateException     If the game already ended or if <code>i,j</code> is not a free cell
      */
     public MNKGameState markCell(int i, int j) throws IndexOutOfBoundsException, IllegalStateException {
+        // System.out.println( "before mark move:\n" + toString() );
         int markingPlayer = this.currentPlayer();
+        MNKCell oldc = new MNKCell(i,j,cellState(i,j) );
         MNKGameState gameState = super.markCell(i, j);
-        freeCellsQueue.remove( MC.getLast() );
+        MNKCell newc = MC.getLast();
+
         updateWeights( i, j, 1 );
+        freeCellsQueue.remove( oldc );
+        // System.out.println( "after mark move: " + newc + "\n" + toString() );
         return gameState;
     }
 
@@ -64,16 +69,32 @@ public class WeightedMNKBoard extends MNKBoard {
      * @throws IllegalStateException If there is no move to undo
      */
     public void unmarkCell() throws IllegalStateException {
+        // System.out.println( "before unmark move:\n" + toString() );
+        MNKCell newc = null;
         if(MC.size() > 0) {
             MNKCell oldc = MC.getLast();
+            newc = new MNKCell(oldc.i, oldc.j, MNKCellState.FREE );
             updateWeights( oldc.i, oldc.j, -1 );
-            freeCellsQueue.add( oldc );
-            // TODO the cell'sweight now should be reset and updated
+            freeCellsQueue.add( newc );
         }
 
         super.unmarkCell();
+        // System.out.println( "after unmark move: " + newc + "\n" + toString() );
     }
 
+    /**
+     * Returns the free cells list in array format.
+     * <p>There is not a predefined order for the free cells in the array</p>
+     *
+     * @return List of free cells
+     */
+    public PriorityQueue<MNKCell> getWeightedFreeCellsHeap() {
+        return freeCellsQueue;
+    }
+
+    public MNKCell[] getFreeCells() {
+        return (MNKCell[]) freeCellsQueue.toArray();
+    }
     /**
      * Count how many consecutive cells are in the state s starting from source (included)  through the direction vector
      * @param s
@@ -104,27 +125,31 @@ public class WeightedMNKBoard extends MNKBoard {
     private void updateWeights( int i, int j, int mod ) {
         MNKCellState s = cellState( i, j );
         MNKCell updatedCell;
-        // first half adjacent direction vectors on clockwise
+        // first half adjacent direction vectors on clockwise ( starting from 00:00 )
         int[][] halfOffsets = { { -1, 0 }, { -1, 1 }, { 0, 1 }, { 1, 1 } },
                 weights = getWeights();
 
         int[]   source = { 0, 0 },
                 distance = { 0, 0 },
-                nextPointInSequence = { 0 , 0 };
+                nextPointInSequence = { 0, 0 };
         int countBefore = 0, countAfter = 0;
 
+        // update target's weight on remove
+        weights[ i ][ j ] += 1 * mod;
+
         // update cell's weight on the both direction end
-        // 8 * c * O( k )
+        // 4 * ( 2c * ( O( k ) + O( PriorityQueue.add ) + O( PriorityQueue.remove ) ) )
         for ( int[] direction : halfOffsets ) {
             source[ 0 ] = i; source[ 1 ] = j;
             countAfter = countMatchesInARow( s, source, direction );
             countBefore = countMatchesInARow( s, source, vectorScale( direction, -1 ) );
             // n = -1 + countBefore + countAfter; // source is counted twice
+            // weights[ i ][ j ] is always >= n ( > because can be increased by other sides )
 
             // go to prev of first
 
             // distance = direction * (countBefore+1) ( + 1 for next cell )
-            vectorScale( vectorCopy( distance, direction ), countBefore+1 );
+            vectorScale( vectorCopy( distance, direction ), countBefore );
             // nextPointInSequence = source + distance
             vectorSum( vectorCopy( nextPointInSequence, source ), distance );
 
@@ -144,7 +169,7 @@ public class WeightedMNKBoard extends MNKBoard {
             vectorScale( direction, -1 ); // flip direction
 
             // distance = direction * (countAfter+1) ( + 1 for next cell )
-            vectorScale( vectorCopy( distance, direction ), countAfter+1 );
+            vectorScale( vectorCopy( distance, direction ), countAfter );
             // nextPointInSequence = source + distance
             vectorSum( vectorCopy( nextPointInSequence, source ), distance );
 
@@ -164,11 +189,11 @@ public class WeightedMNKBoard extends MNKBoard {
     }
 
 
-    private Set<MNKCell> adj(MNKCell cell ) {
+    public Set<MNKCell> adj(MNKCell cell ) {
         return adj( cell.i, cell.j );
     }
 
-    private Set<MNKCell> adj(int i, int j ) {
+    public Set<MNKCell> adj(int i, int j ) {
 
        HashSet<MNKCell> adj = new HashSet<MNKCell>( 8);
 
@@ -208,7 +233,7 @@ public class WeightedMNKBoard extends MNKBoard {
      * @return dest with source's values
      */
     private static int[] vectorCopy( int[] dest, int[] source ) {
-        for (int i = 0; i < dest.length; i++) dest[ i ] += source[ i ];
+        for (int i = 0; i < dest.length; i++) dest[ i ] = source[ i ];
         return dest;
     }
     /**
@@ -231,4 +256,11 @@ public class WeightedMNKBoard extends MNKBoard {
         return !(v[0] < 0 || v[0] >= M || v[1] < 0 || v[1] >= N);
     }
 
+    public String toString() {
+        String s = "";
+        for (int i = 0; i < B.length; i++) {
+            s += Arrays.toString( B[ i ] ) + "\t\t" + Arrays.toString( weights[ i ] ) + "\n";
+        }
+        return s;
+    }
 }
