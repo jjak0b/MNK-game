@@ -23,7 +23,7 @@ public class WeightedMNKBoard extends MNKBoard {
         freeCellsQueue = new PriorityQueue<MNKCell>(FC.size(), new Comparator<MNKCell>() {
             @Override
             public int compare(MNKCell o1, MNKCell o2) {
-                return weights[ o1.i ][ o1.j ] - weights[ o2.j ][ o2.j ];
+                return weights[ o2.j ][ o2.j ] - weights[ o1.i ][ o1.j ];
             }
         });
 
