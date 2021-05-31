@@ -1,10 +1,34 @@
 package mnkgame;
 
+import java.math.BigInteger;
 import java.util.*;
 
 public class WeightedMNKBoard extends MNKBoard {
     protected final int[][] weights;
     protected final PriorityQueue<MNKCell> freeCellsQueue;
+    /**
+     * Unique state, hash of the current board
+     * Implemented as bitfield of L bits where L = 2 * M * N
+     * Each 2 bits represent the state of a cell of the matrix, considering the matrix as array of length M * N
+     * So the 2 least significant bits represent the cell state at (0,0),
+     * the next 2 represent the cell state at (0,1), and so on ...
+     * Cell States:
+     * Free Cell:       00
+     * First Player:    01
+     * Second Player:   10
+     *
+     * Note:
+     * <= 4x4 Matrix needs a minimum of 1 int ( 32 bit )
+     * <= 6x6 Matrix needs a minimum of 2 int or 1 long ( 64 bit )
+     * <= 8x8 Matrix needs a minimum of 4 int or 2 long ( 128bit )
+     * <= 16x16 Matrix needs a minimum of 16 int or 8 long ( 512bit )
+     * and so on ...
+     */
+    protected BigInteger currentState;
+
+    public BigInteger getCurrentState() {
+        return currentState;
+    }
 
     /**
      * Create a board of size MxN and initialize the game parameters
@@ -14,8 +38,10 @@ public class WeightedMNKBoard extends MNKBoard {
      * @param K Number of symbols to be aligned (horizontally, vertically, diagonally) for a win
      * @throws IllegalArgumentException If M,N,K are smaller than  1
      */
-    public WeightedMNKBoard(int M, int N, int K) throws IllegalArgumentException {
+    public WeightedMNKBoard(int M, int N, int K ) throws IllegalArgumentException {
         super(M, N, K);
+
+        currentState = BigInteger.ZERO;
 
         weights = new int[M][N];
         initWeights();
@@ -23,7 +49,7 @@ public class WeightedMNKBoard extends MNKBoard {
         freeCellsQueue = new PriorityQueue<MNKCell>(FC.size(), new Comparator<MNKCell>() {
             @Override
             public int compare(MNKCell o1, MNKCell o2) {
-                return weights[ o2.j ][ o2.j ] - weights[ o1.i ][ o1.j ];
+                return weights[ o2.i ][ o2.j ] - weights[ o1.i ][ o1.j ];
             }
         });
 
@@ -41,6 +67,13 @@ public class WeightedMNKBoard extends MNKBoard {
                 weights[i][j] = 0;
     }
 
+    private int getArrayIndexFromMatrixIndexes(int i, int j ) {
+        return (i * M) + j;
+    }
+
+// https://inst.eecs.berkeley.edu/~cs61bl/r//cur/hashing/hashing-ttt.html
+
+
     /**
      * Marks the selected cell for the current player
      *
@@ -52,8 +85,15 @@ public class WeightedMNKBoard extends MNKBoard {
      */
     public MNKGameState markCell(int i, int j) throws IndexOutOfBoundsException, IllegalStateException {
         // System.out.println( "before mark move:\n" + toString() );
-        int markingPlayer = this.currentPlayer();
+        int markingPlayer = currentPlayer();
         MNKCell oldc = new MNKCell(i,j,cellState(i,j) );
+
+        // mark bitfield at (i, j)
+        currentState = currentState.xor(
+            // set the mark, shifting left by X * 2 positions, where X is the array coordinate of the matrix
+            BigInteger.valueOf( markingPlayer ).shiftLeft( getArrayIndexFromMatrixIndexes(i, j) * 2 )
+        );
+
         MNKGameState gameState = super.markCell(i, j);
         MNKCell newc = MC.getLast();
 
@@ -76,7 +116,14 @@ public class WeightedMNKBoard extends MNKBoard {
             newc = new MNKCell(oldc.i, oldc.j, MNKCellState.FREE );
             updateWeights( oldc.i, oldc.j, -1 );
             freeCellsQueue.add( newc );
+
+            // unmark bitfield at (i, j)
+            currentState = currentState.xor(
+                // set the mark, shifting left by X * 2 positions, where X is the array coordinate of the matrix
+                BigInteger.valueOf( currentPlayer() ).shiftLeft( getArrayIndexFromMatrixIndexes(oldc.i, oldc.j) * 2 )
+            );
         }
+
 
         super.unmarkCell();
         // System.out.println( "after unmark move: " + newc + "\n" + toString() );
@@ -262,5 +309,37 @@ public class WeightedMNKBoard extends MNKBoard {
             s += Arrays.toString( B[ i ] ) + "\t\t" + Arrays.toString( weights[ i ] ) + "\n";
         }
         return s;
+    }
+
+    @Override
+    /**
+     * return the player index state that must play the next move
+     * 1 For first Player
+     * 2 For Second Player
+     */
+    public int currentPlayer() {
+        return super.currentPlayer() + 1;
+    }
+
+    @Override
+    public int hashCode() {
+        return currentState.hashCode();
+    }
+
+    public boolean equals( Object o ) {
+        if( !(o instanceof MNKBoard) ) {
+            return false;
+        }
+
+        MNKBoard b = (MNKBoard) o;
+        for (int i = 0; i < M; i++) {
+            for (int j = 0; j < N; j++) {
+                if( cellState( i, j ) != b.cellState( i, j ) ) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

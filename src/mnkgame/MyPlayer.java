@@ -11,7 +11,13 @@ public class MyPlayer implements MNKPlayer {
     private MNKCell lastCell;
     private MNKCellState MY_MARK_STATE;
     private int playerIndex;
-    private int moveLeft;
+    private int maxDepthSearch = 5;
+    private int[][] corners;
+
+//     PriorityQueue<MNKCell> bestMoves;
+
+//    private float[][] movesScores;
+
     MyPlayer() {
 
     }
@@ -29,14 +35,34 @@ public class MyPlayer implements MNKPlayer {
         // New random seed for each game
 
         rand    = new Random(System.currentTimeMillis());
+        // prioritize cells to pick based on a sort of heatmap
         currentBoard = new WeightedMNKBoard(M,N,K);
+
         STATE_WIN = first ? MNKGameState.WINP1 : MNKGameState.WINP2;
         STATE_LOSE = first ? MNKGameState.WINP2 : MNKGameState.WINP1;
         MY_MARK_STATE = first ? MNKCellState.P1 : MNKCellState.P2;
-        timeout = timeout_in_secs;
+        timeout = timeout_in_secs * 1000;
         playerIndex = first ? 0 : 1;
+        corners = new int[][]{ {0, 0}, {0, currentBoard.N-1}, {currentBoard.M-1, 0}, {currentBoard.M-1, currentBoard.N-1} };
+        // movesScores = new float[M][N];
+
     }
 
+    protected MNKCell strategyAsFirst(MNKCell[] FC, MNKCell[] MC) {
+        int[] coords = corners[ rand.nextInt( corners.length ) ];
+        System.out.println( "First Move: Move to a corner");
+        return new MNKCell( coords[0], coords[1] );
+    }
+
+    protected MNKCell strategyAsSecond(MNKCell[] FC, MNKCell[] MC) {
+        for (int i = 0; i < corners.length; i++) {
+            if( MC[0].i == corners[i][0] && MC[0].j == corners[i][1] ) {
+                System.out.println( "Detected Corner strategy for enemy, use middle position");
+                return new MNKCell( (currentBoard.M >> 1), (currentBoard.N >> 1) );
+            }
+        }
+        return null;
+    }
     /**
      * Select a position among those listed in the <code>FC</code> array
      *
@@ -48,52 +74,70 @@ public class MyPlayer implements MNKPlayer {
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
 
         MNKCell choice = null;
-        if(MC.length > 0) {
+        if(MC.length > 0 ){
             choice = MC[MC.length-1]; // Recover the last move from MC
-            currentBoard.markCell(choice.i,choice.j);         // Save the last move in the local MNKBoard
-        }
-        else { // first move !
-            choice = FC[rand.nextInt(FC.length)];
-            currentBoard.markCell(choice.i,choice.j);
-            return choice;
+            currentBoard.markCell(choice.i, choice.j);
+            choice = null;
         }
 
-        // If there is just one possible move, return immediately
-        if(FC.length == 1){
-            choice = FC[0];
-            currentBoard.markCell(choice.i,choice.j);
+        switch ( MC.length ){
+            case 0: // move as first
+//                choice = strategyAsFirst(FC, MC);
+                choice = FC[rand.nextInt(FC.length)]; // random
+//                choice = new MNKCell(3,0);
+                break;
+//            case 1: // move as second
+//                choice = strategyAsSecond(FC, MC);
+//                break;
+        }
+
+        if( choice != null ) {
+            currentBoard.markCell(choice.i, choice.j);         // Save the last move in the local MNKBoard
             return choice;
         }
 
         // System.out.println( "before move:\n" + currentBoard.toString() );
-        this.lastCell = FC[ 0 ];
         long start = System.currentTimeMillis();
-        float markRatio = currentBoard.FC.size() != 0 ? (currentBoard.MC.size() / (float) (currentBoard.M * currentBoard.N ) ) : 0f;
+        long endTime = start + (long) ( timeout * (99.0/100.0));
+
+        // float markRatio = currentBoard.FC.size() != 0 ? (currentBoard.MC.size() / (float) (currentBoard.M * currentBoard.N ) ) : 0f;
         // int average = Math.round(currentBoard.M + currentBoard.N + currentBoard.K) / 3;
         // int movesLeft = Math.max( 5, Math.round( currentBoard.K * markRatio ) );
+
+        // TODO: check with start @ (5, 4 ) in 7 7 4
 
         // Good: 6 6 4, 7 7 4 -> moveleft = 5
         AlphaBetaOutcome outcome = alphaBetaPruning(
                 currentBoard,
-                false,
-                5,
-                0,
+                true,
                 -1f,
-                1f
+                1f,
+                0,
+                maxDepthSearch,
+                endTime
         );
         long end = System.currentTimeMillis();
         long elapsed = end-start;
-        // System.out.println( "Decision made in " + (elapsed/1000.0) );
+        long timeLeft = (endTime-end);
 
+        if( timeLeft > 100 ){
+            maxDepthSearch += 1;
+        }
+        else if( timeLeft < 0 ) {
+            maxDepthSearch -= 1;
+        }
+
+        System.out.println( "Euristic: " + outcome.getWeightedValue() + "\tDecision made in " + (elapsed/1000.0) + "\tLeft Time: " + (timeLeft/1000.0) );
         // System.out.println( Arrays.toString( currentBoard.getFreeCells() ) );
         // System.out.println( "if " + currentBoard.currentPlayer()  + " choose " +  outcome.move + " -> " + outcome.eval );
         currentBoard.markCell( outcome.move.i, outcome.move.j );
-        // System.out.println( "after move:\n" + currentBoard.toString() );
+        System.out.println( "after move:\n" + currentBoard.toString() );
         return outcome.move;
     }
 
-    private float evaluate( WeightedMNKBoard board, int depth, boolean isMyTurn ) {
+    private AlphaBetaOutcome evaluate( WeightedMNKBoard board, int depth, boolean isMyTurn ) {
         MNKGameState gameState =  board.gameState();
+        AlphaBetaOutcome outcome = new AlphaBetaOutcome();
 
         float score = 0;
         if( gameState == this.STATE_WIN ) {
@@ -115,13 +159,15 @@ public class MyPlayer implements MNKPlayer {
 
             // newStimeScore = scoreWeight * oldScore  + ( 1 - scoreWeight ) * oldStimeScore
 
-            score += evaluateHeuristicWeights( board );
+            // score += evaluateHeuristicWeights( board );
 
             if( score != 0f ) score = 1f / score;
 
         }
 
-        return score / (Math.max( 1f, depth ) );
+        outcome.eval = score;
+        outcome.depth = depth;
+        return outcome;
     }
 
     private float evaluateHeuristicWeights( WeightedMNKBoard board ) {
@@ -156,58 +202,55 @@ public class MyPlayer implements MNKPlayer {
         // it.remove();
         // MC.add(marked);
     }
-    private AlphaBetaOutcome alphaBetaPruning(WeightedMNKBoard tree, boolean isMyTurn, int leftMoves, int depth, float a, float b ) {
 
-        AlphaBetaOutcome outcome = null;
-        if( leftMoves == 0 || tree.gameState() != MNKGameState.OPEN ) {
-            outcome = new AlphaBetaOutcome();
-            outcome.eval = evaluate( tree, depth, isMyTurn );
-            return outcome;
+
+    protected AlphaBetaOutcome alphaBetaPruning(WeightedMNKBoard tree, boolean shouldMaximize, float a, float b, int depth, int depthLeft, long endTime ) {
+        // on last if condition may would be a match in a always win/lost configuration
+        if( depthLeft == 0 || tree.gameState() != MNKGameState.OPEN ) {
+            return evaluate( tree, depth+1, shouldMaximize );
         }
         else {
-            AlphaBetaOutcome bestOutcome = null;
-            float eval = isMyTurn ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
-            // System.out.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
+            AlphaBetaOutcome bestOutcome = null, outcome = null;
+            // System.out.println( getPlayerByIndex( shouldMaximize ? 0 : 1 )+ " Move " + depth );
 
-            Object[] candidates = getCellCandidates( tree ).toArray();
-            // System.out.println( Arrays.toString( candidates ) );
-            for ( Object _unmarkedCell : candidates ) {
-                MNKCell unmarkedCell = (MNKCell) _unmarkedCell;
+            Iterator<MNKCell> moves = getCellCandidates( tree ).iterator();
 
-                mark( tree, unmarkedCell, depth);
-                if (isMyTurn) {
-                    outcome = alphaBetaPruning(tree, false, leftMoves - 1, depth+1, a, b );
-                    if( bestOutcome == null || outcome.eval < bestOutcome.eval ) {
-                        bestOutcome = outcome;
-                        bestOutcome.move = unmarkedCell;
-                    }
-                    eval = Math.min(eval, outcome.eval );
-                    b = Math.min(eval, b);
+            while( moves.hasNext() ) {
 
-                    if (b <= a) { // a cutoff ( can't get better results )
-                        // System.out.println( getPlayerByIndex( isMyTurn ? 0 : 1 ) + getTabForDepth( depth ) +  "a cutoff:" + "a:" + a + "\teval:" + eval + "\tb:" + b );
-                        unMark( tree, depth );
-                        // printUntil( unmarkedCell, candidates );
-                        break;
-                    }
-                }
-                else {
-                    outcome = alphaBetaPruning(tree, true, leftMoves - 1, depth+1, a, b );
-                    if( bestOutcome == null || outcome.eval > bestOutcome.eval ) {
-                        bestOutcome = outcome;
-                        bestOutcome.move = unmarkedCell;
-                    }
-                    eval = Math.max(eval, outcome.eval );
-                    a = Math.max(eval, a);
+                MNKCell move = moves.next();
+                mark( tree, move, depth);
 
-                    if (b <= a) { // b cutoff ( can't get better results )
-                        // System.out.println( getPlayerByIndex( tree.currentPlayer() ) + getTabForDepth( depth ) +  "b cutoff:" + "a:" + a + "\teval:" + eval + "\tb:" + b );
-                        unMark( tree, depth );
-                        // printUntil( unmarkedCell, candidates );
-                        break;
-                    }
-                }
+                outcome = alphaBetaPruning(tree, !shouldMaximize, a, b, depth + 1, depthLeft - 1, endTime);
+
                 unMark( tree, depth );
+
+                try {
+                    // minimize
+                    if (!shouldMaximize && (bestOutcome == null || outcome.compareTo(bestOutcome) < 0) ) {
+                        bestOutcome = outcome;
+                        bestOutcome.move = move;
+                        b = outcome.getWeightedValue();
+                    }
+                    // maximize
+                    else if (shouldMaximize && (bestOutcome == null || outcome.compareTo(bestOutcome) > 0) ) {
+                        bestOutcome = outcome;
+                        bestOutcome.move = move;
+                        a = outcome.getWeightedValue();
+                    }
+                }
+                catch (Exception e) {
+                    System.out.println( e );
+                }
+
+                if( System.currentTimeMillis() > endTime ) {
+                    System.out.println( "Exiting quickly" );
+                    break;
+                }
+
+                if (b <= a) { // a or b cutoff ( can't get better results )
+                    break;
+                }
+
                 // System.out.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
             }
             return bestOutcome;
@@ -226,10 +269,21 @@ public class MyPlayer implements MNKPlayer {
         }
         // System.out.println( Arrays.toString( filter.toArray() ) );
     }
-    private PriorityQueue<MNKCell> getCellCandidates(WeightedMNKBoard board ) {
+
+    /**
+     * Return
+     * @param board
+     * @return
+     */
+    private List<MNKCell> getCellCandidates(WeightedMNKBoard board ) {
         // first should be cells that are in sequence that have 1 move left to win
         // after should be cells that are in sequence that have 2 move left to win
-        return board.getWeightedFreeCellsHeap();
+        PriorityQueue<MNKCell> pq = board.getWeightedFreeCellsHeap();
+
+        ArrayList<MNKCell> list = new ArrayList<>( pq );
+        Collections.sort( list, pq.comparator() );
+
+        return list;
     }
 
     static String getPlayerByIndex( int index ) {
@@ -264,7 +318,54 @@ public class MyPlayer implements MNKPlayer {
     }
 }
 
-class AlphaBetaOutcome {
+class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
     public float eval;
     public MNKCell move;
+    public int depth;
+
+    public float getWeightedValue() {
+        return eval / (Math.max( 1f, depth ) );
+    }
+
+    public AlphaBetaOutcome( AlphaBetaOutcome value ) {
+        this.eval = value.eval;
+        this.move = value.move;
+        this.depth = value.depth;
+    }
+
+    public AlphaBetaOutcome() {
+
+    }
+
+    @Override
+    public int compareTo(AlphaBetaOutcome o) {
+        if( o == null ) {
+            return 1;
+        }
+        else {
+            float thisWeight = getWeightedValue();
+            float thatWeight = o.getWeightedValue();
+
+            if( thisWeight > thatWeight ){
+                return 1;
+            }
+            else if( thisWeight < thatWeight ){
+                return -1;
+            }
+            else if( thisWeight == 0f ){
+                if( depth < o.depth ){
+                    return 1;
+                }
+                else if( depth > o.depth){
+                    return -1;
+                }
+                else {
+                    return 0;
+                }
+            }
+            else {
+                return 0;
+            }
+        }
+    }
 }
