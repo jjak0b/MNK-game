@@ -20,10 +20,10 @@ public class GoodMemoryPlayer extends MyPlayer {
 
 
     @Override
-    protected AlphaBetaOutcome alphaBetaPruning(WeightedMNKBoard tree, boolean shouldMaximize, float alpha, float beta, int depth, int depthLeft, long endTime) {
+    protected AlphaBetaOutcome alphaBetaPruning(WeightedMNKBoard tree, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) {
 
-        float a = alpha;
-        float b = beta;
+        int a = alpha;
+        int b = beta;
         BigInteger key = tree.getCurrentState();
         AlphaBetaOutcome outcome;
 

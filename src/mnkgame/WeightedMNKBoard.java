@@ -4,8 +4,8 @@ import java.math.BigInteger;
 import java.util.*;
 
 public class WeightedMNKBoard extends MNKBoard {
-    protected final int[][] weights;
-    protected final PriorityQueue<MNKCell> freeCellsQueue;
+    protected final int[][][] weights;
+    protected final PriorityQueue<MNKCell>[] freeCellsQueue;
     /**
      * Unique state, hash of the current board
      * Implemented as bitfield of L bits where L = 2 * M * N
@@ -26,6 +26,11 @@ public class WeightedMNKBoard extends MNKBoard {
      */
     protected BigInteger currentState;
 
+    final int CELL_STATE_BITS_FOR_PLAYER[] = {
+        1, // first player 01
+        2 // second player 10
+    };
+
     public BigInteger getCurrentState() {
         return currentState;
     }
@@ -43,28 +48,45 @@ public class WeightedMNKBoard extends MNKBoard {
 
         currentState = BigInteger.ZERO;
 
-        weights = new int[M][N];
+        weights = new int[2][M][N];
         initWeights();
 
-        freeCellsQueue = new PriorityQueue<MNKCell>(FC.size(), new Comparator<MNKCell>() {
-            @Override
-            public int compare(MNKCell o1, MNKCell o2) {
-                return weights[ o2.i ][ o2.j ] - weights[ o1.i ][ o1.j ];
-            }
-        });
+        freeCellsQueue = new PriorityQueue[] {
+                // player 0 watch its weights
+                new PriorityQueue<>(FC.size(), new Comparator<MNKCell>() {
+                    @Override
+                    public int compare(MNKCell o1, MNKCell o2) {
+                        return weights[0][o2.i][o2.j] - weights[0][o1.i][o1.j];
+                    }
+                }),
+                // player 1 watch its weights
+                new PriorityQueue<>(FC.size(), new Comparator<MNKCell>() {
+                    @Override
+                    public int compare(MNKCell o1, MNKCell o2) {
+                        return weights[1][o2.i][o2.j] - weights[1][o1.i][o1.j];
+                    }
+                })
+        };
 
-        freeCellsQueue.addAll( FC );
+        freeCellsQueue[0].addAll( FC );
+        freeCellsQueue[1].addAll( FC );
     }
 
-    public int[][] getWeights() {
-        return weights;
+    public WeightedMNKBoard(int M, int N, int K, MNKCell[] movesDone ) {
+        this(M, N, K);
+        for (MNKCell move : movesDone) markCell(move.i, move.j);
+    }
+
+    public int[][] getWeights(int playerIndex) {
+        return weights[playerIndex];
     }
 
     // Sets to free all board cells
     private void initWeights() {
-        for(int i = 0; i < M; i++)
-            for(int j = 0; j < N; j++)
-                weights[i][j] = 0;
+        for (int p = 0; p < 2; p++)
+            for(int i = 0; i < M; i++)
+                for(int j = 0; j < N; j++)
+                    weights[p][i][j] = 0;
     }
 
     private int getArrayIndexFromMatrixIndexes(int i, int j ) {
@@ -91,14 +113,16 @@ public class WeightedMNKBoard extends MNKBoard {
         // mark bitfield at (i, j)
         currentState = currentState.xor(
             // set the mark, shifting left by X * 2 positions, where X is the array coordinate of the matrix
-            BigInteger.valueOf( markingPlayer ).shiftLeft( getArrayIndexFromMatrixIndexes(i, j) * 2 )
+            BigInteger.valueOf( CELL_STATE_BITS_FOR_PLAYER[markingPlayer] ).shiftLeft( getArrayIndexFromMatrixIndexes(i, j) * 2 )
         );
 
         MNKGameState gameState = super.markCell(i, j);
         MNKCell newc = MC.getLast();
 
-        updateWeights( i, j, 1 );
-        freeCellsQueue.remove( oldc );
+        updateWeights( i, j, 1, markingPlayer);
+
+        freeCellsQueue[0].remove( oldc );
+        freeCellsQueue[1].remove( oldc );
         // System.out.println( "after mark move: " + newc + "\n" + toString() );
         return gameState;
     }
@@ -113,14 +137,18 @@ public class WeightedMNKBoard extends MNKBoard {
         MNKCell newc = null;
         if(MC.size() > 0) {
             MNKCell oldc = MC.getLast();
+            int unMarkingPlayer = Utils.getPlayerIndex(oldc.state);
             newc = new MNKCell(oldc.i, oldc.j, MNKCellState.FREE );
-            updateWeights( oldc.i, oldc.j, -1 );
-            freeCellsQueue.add( newc );
+
+            updateWeights( newc.i, newc.j, -1 , unMarkingPlayer);
+
+            freeCellsQueue[0].add( newc );
+            freeCellsQueue[1].add( newc );
 
             // unmark bitfield at (i, j)
             currentState = currentState.xor(
                 // set the mark, shifting left by X * 2 positions, where X is the array coordinate of the matrix
-                BigInteger.valueOf( currentPlayer() ).shiftLeft( getArrayIndexFromMatrixIndexes(oldc.i, oldc.j) * 2 )
+                BigInteger.valueOf( CELL_STATE_BITS_FOR_PLAYER[unMarkingPlayer] ).shiftLeft( getArrayIndexFromMatrixIndexes(oldc.i, oldc.j) * 2 )
             );
         }
 
@@ -129,18 +157,27 @@ public class WeightedMNKBoard extends MNKBoard {
         // System.out.println( "after unmark move: " + newc + "\n" + toString() );
     }
 
+    private int getCurrentPlayerMod( int currentPlayer) {
+        if( currentPlayer > 1 ){
+            return 1;
+        }
+        else {
+            return -1;
+        }
+    }
+
     /**
      * Returns the free cells list in array format.
      * <p>There is not a predefined order for the free cells in the array</p>
      *
      * @return List of free cells
      */
-    public PriorityQueue<MNKCell> getWeightedFreeCellsHeap() {
-        return freeCellsQueue;
+    public PriorityQueue<MNKCell> getWeightedFreeCellsHeap(int playerIndex) {
+        return freeCellsQueue[playerIndex];
     }
 
-    public MNKCell[] getFreeCells() {
-        return (MNKCell[]) freeCellsQueue.toArray();
+    public MNKCell[] getFreeCells(int playerIndex) {
+        return (MNKCell[]) freeCellsQueue[playerIndex].toArray();
     }
     /**
      * Count how many consecutive cells are in the state s starting from source (included)  through the direction vector
@@ -155,7 +192,7 @@ public class WeightedMNKBoard extends MNKBoard {
         int n = 0;
         while( isVectorInBounds( index ) && cellState( index[0], index[1] ) == s ) {
             n++;
-            vectorSum( index, direction );
+            Vectors.vectorSum(index, direction);
         }
         return n;
     }
@@ -169,129 +206,105 @@ public class WeightedMNKBoard extends MNKBoard {
      * @param j
      * @param mod weight modifier used to scale the count applied to extremes cells, use > 0 after marking, < 0 after unmarking
      */
-    private void updateWeights( int i, int j, int mod ) {
+    private void updateWeights( int i, int j, int mod, int playerIndex) {
         MNKCellState s = cellState( i, j );
         MNKCell updatedCell;
         // first half adjacent direction vectors on clockwise ( starting from 00:00 )
-        int[][] halfOffsets = { { -1, 0 }, { -1, 1 }, { 0, 1 }, { 1, 1 } },
-                weights = getWeights();
+        int[][] weights = getWeights(playerIndex);
 
         int[]   source = { 0, 0 },
+                direction = {0, 0},
+                counts = { 0, 0},
                 distance = { 0, 0 },
                 nextPointInSequence = { 0, 0 };
-        int countBefore = 0, countAfter = 0;
-
+        int countInDirection = 0, countInOppositeDirection = 0;
         // update target's weight on remove
         weights[ i ][ j ] += 1 * mod;
 
         // update cell's weight on the both direction end
         // 4 * ( 2c * ( O( k ) + O( PriorityQueue.add ) + O( PriorityQueue.remove ) ) )
-        for ( int[] direction : halfOffsets ) {
-            source[ 0 ] = i; source[ 1 ] = j;
-            countAfter = countMatchesInARow( s, source, direction );
-            countBefore = countMatchesInARow( s, source, vectorScale( direction, -1 ) );
-            // n = -1 + countBefore + countAfter; // source is counted twice
-            // weights[ i ][ j ] is always >= n ( > because can be increased by other sides )
 
-            // go to prev of first
+        // check adjacent direction vectors
+        for ( int direction_type : Utils.DIRECTIONS ) {
+            int[][] direction_offsets = Utils.DIRECTIONS_OFFSETS[direction_type];
 
-            // distance = direction * (countBefore+1) ( + 1 for next cell )
-            vectorScale( vectorCopy( distance, direction ), countBefore );
-            // nextPointInSequence = source + distance
-            vectorSum( vectorCopy( nextPointInSequence, source ), distance );
+            // calculate counts in both sides of this direction
+            for (int side = 0; side < direction_offsets.length; side++) {
+                source[ 0 ] = i; source[ 1 ] = j;
 
-            // if next is free then update its weight to total
-            if( isVectorInBounds( nextPointInSequence ) ) {
-                weights[ nextPointInSequence[0] ][ nextPointInSequence[1] ] += countAfter * mod;
-                // update cell position
-                MNKCellState cellState = cellState( nextPointInSequence[ 0 ], nextPointInSequence[ 1 ] );
-                if( cellState == MNKCellState.FREE ) {
-                    updatedCell = new MNKCell( nextPointInSequence[0], nextPointInSequence[1], cellState );
-                    freeCellsQueue.remove( updatedCell );
-                    freeCellsQueue.add( updatedCell );
-                }
+                // flip direction based on type
+                Vectors.vectorCopy(direction, direction_offsets[side]);
+                counts[side] = countMatchesInARow( s, source, direction );
             }
+            // update weight on both sides of this direction
+            for (int side = 0; side < direction_offsets.length; side++) {
+                int oppositeSide = (direction_offsets.length-1) - side;
 
-            // go to next of last
-            vectorScale( direction, -1 ); // flip direction
+                source[ 0 ] = i; source[ 1 ] = j;
 
-            // distance = direction * (countAfter+1) ( + 1 for next cell )
-            vectorScale( vectorCopy( distance, direction ), countAfter );
-            // nextPointInSequence = source + distance
-            vectorSum( vectorCopy( nextPointInSequence, source ), distance );
+                // flip direction based on type
+                Vectors.vectorCopy(direction, direction_offsets[side]);
 
-            // if next is free then update its weight to total
-            if( isVectorInBounds( nextPointInSequence ) ) {
-                updatedCell = new MNKCell( nextPointInSequence[0], nextPointInSequence[1], cellState( nextPointInSequence[ 0 ], nextPointInSequence[ 1 ] ) );
-                weights[ nextPointInSequence[0] ][ nextPointInSequence[1] ] += countBefore * mod;
-                // update cell position
-                MNKCellState cellState = cellState( nextPointInSequence[ 0 ], nextPointInSequence[ 1 ] );
-                if( cellState == MNKCellState.FREE ) {
-                    updatedCell = new MNKCell( nextPointInSequence[0], nextPointInSequence[1], cellState );
-                    freeCellsQueue.remove( updatedCell );
-                    freeCellsQueue.add( updatedCell );
+                countInDirection = counts[side];
+                countInOppositeDirection = counts[oppositeSide];
+
+                // System.out.println("From " + source + " in direction " + direction + " we have " + countInDirection + " and in opposite " + countInOppositeDirection );
+
+                // n = -1 + countBefore + countAfter; // source is counted twice
+                // weights[ i ][ j ] is always >= n ( > because can be increased by other sides )
+                // go to prev of first
+                // and then go to next of last
+
+                // distance = direction * (countBefore+1) ( + 1 for next cell )
+                Vectors.vectorScale(Vectors.vectorCopy(distance, direction), countInDirection);
+                // nextPointInSequence = source + distance
+                Vectors.vectorSum(Vectors.vectorCopy(nextPointInSequence, source), distance);
+
+                // if next is free then update its weight to total
+                if( isVectorInBounds( nextPointInSequence ) ) {
+                    weights[ nextPointInSequence[0] ][ nextPointInSequence[1] ] += countInOppositeDirection * mod;
+                    // update cell position
+                    MNKCellState cellState = cellState( nextPointInSequence[ 0 ], nextPointInSequence[ 1 ] );
+                    if( cellState == MNKCellState.FREE ) {
+                        updatedCell = new MNKCell( nextPointInSequence[0], nextPointInSequence[1], cellState );
+
+                        freeCellsQueue[playerIndex].remove( updatedCell );
+                        freeCellsQueue[playerIndex].add( updatedCell );
+                    }
                 }
             }
         }
     }
 
-
-    public Set<MNKCell> adj(MNKCell cell ) {
+    public HashMap<Integer, List<MNKCell>> adj(MNKCell cell ) {
         return adj( cell.i, cell.j );
     }
 
-    public Set<MNKCell> adj(int i, int j ) {
+    public HashMap<Integer, List<MNKCell>> adj(int i, int j ) {
 
-       HashSet<MNKCell> adj = new HashSet<MNKCell>( 8);
+       HashMap<Integer, List<MNKCell>> adj = new HashMap<>(2 * Utils.DIRECTIONS.length );
 
-        int minR = Math.max( 0, i-1);
-        int maxR = Math.min( M, i+1);
-        int minC = Math.max( 0, j-1);
-        int maxC = Math.min( N, j+1);
+        int[]
+                origin = { i, j },
+                position = { i, j };
 
-        for (int r = minR; r < maxR; r++) {
-            for (int c = minC; c < maxC; c++) {
-                if( !(r == i && c == j) ) {
-                    adj.add(new MNKCell(r, c, cellState(r, c)));
+        for ( int direction_type : Utils.DIRECTIONS ) {
+
+            int[][] direction_offsets = Utils.DIRECTIONS_OFFSETS[direction_type];
+
+            List<MNKCell> cells = new ArrayList<>(direction_offsets.length);
+
+            for ( int side = 0; side < direction_offsets.length; side ++ ) {
+                Vectors.vectorSum(Vectors.vectorCopy(position, origin), direction_offsets[side]);
+                if( isVectorInBounds(position) ) {
+                    cells.add(new MNKCell(position[0], position[1], cellState(position[0], position[1])) );
                 }
             }
+
+            adj.put(direction_type, cells );
         }
 
         return adj;
-    }
-
-    // Utility functions
-
-    /**
-     * Scale vector of some scalar
-     * @param v
-     * @param scalar
-     * @return the v vector scaled by the amount of the scalar
-     */
-    private static int[] vectorScale( int[] v, int scalar ) {
-        for (int i = 0; i < v.length; i++) v[ i ] *= scalar;
-        return v;
-    }
-
-    /**
-     * Copy source's values in dest
-     * @param dest
-     * @param source
-     * @return dest with source's values
-     */
-    private static int[] vectorCopy( int[] dest, int[] source ) {
-        for (int i = 0; i < dest.length; i++) dest[ i ] = source[ i ];
-        return dest;
-    }
-    /**
-     * Sum the direction to source vector
-     * @param source
-     * @param direction
-     * @return the source vector with the sum applied
-     */
-    private static int[] vectorSum( int[] source, int[] direction ) {
-        for (int i = 0; i < source.length; i++) source[ i ] += direction[ i ];
-        return source;
     }
 
     /**
@@ -299,26 +312,16 @@ public class WeightedMNKBoard extends MNKBoard {
      * @param v
      * @return true if is inside, false otherwise
      */
-    private boolean isVectorInBounds( int[] v ) {
+    public boolean isVectorInBounds( int[] v ) {
         return !(v[0] < 0 || v[0] >= M || v[1] < 0 || v[1] >= N);
     }
 
     public String toString() {
         String s = "";
         for (int i = 0; i < B.length; i++) {
-            s += Arrays.toString( B[ i ] ) + "\t\t" + Arrays.toString( weights[ i ] ) + "\n";
+            s += Utils.toString( B[ i ] ) + "\t\t\t" + Utils.toString( weights[0][ i ], K) + "\t\t\t" + Utils.toString( weights[1][ i ], K) + "\n";
         }
         return s;
-    }
-
-    @Override
-    /**
-     * return the player index state that must play the next move
-     * 1 For first Player
-     * 2 For Second Player
-     */
-    public int currentPlayer() {
-        return super.currentPlayer() + 1;
     }
 
     @Override
