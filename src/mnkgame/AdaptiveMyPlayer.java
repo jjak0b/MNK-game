@@ -5,18 +5,46 @@ import java.util.concurrent.TimeoutException;
 
 public class AdaptiveMyPlayer extends MyPlayer {
     protected int maxDepthSearch = 5;
-    protected float estimatedPercentOfTimeRequiredToExit = 1f/100f;
+    protected float estimatedPercentOfTimeRequiredToExit = 0.5f/100f;
     protected Stack<AlphaBetaOutcome> bestOutcomes;
 
+    protected void restoreTrackingBoard(MNKCell[] FC, MNKCell[] MC) {
+        // we suppose currentBoard.MC.size() >= MC.length
 
+        // we have to restore last valid state, so without last enemy move and this player's last move
+        int countToMark = 2;
+        int countMCBeforeInvalid = MC.length - countToMark;
+        int countToUnMark = currentBoard.MC.size()-countMCBeforeInvalid;
+
+        // un-mark n=difference times and mark next 2 moves (old this player move and the next opponent move )
+        int requiredOperationsToRestoreWay1 = countToUnMark + countToMark;
+        int requiredOperationsToRestoreWay2 = MC.length;
+
+
+        if( requiredOperationsToRestoreWay1 <= requiredOperationsToRestoreWay2 ) {
+            // then un-mark all until we reach the old valid state.
+            for (int i = 0; i < countToUnMark; i++) {
+                unMark(currentBoard, -1);
+            }
+            // and then mark to current state
+            for (int i = 0; i < countToMark; i++) {
+                mark(currentBoard, MC[ countMCBeforeInvalid + i ], -1);
+            }
+        }
+        // otherwise is more convenient a new instance
+        else {
+            currentBoard = new WeightedMNKBoard(currentBoard.M, currentBoard.N, currentBoard.K, MC );
+        }
+
+        isCurrentBoardLeftInValidState = true;
+    }
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
         MNKCell choice = null;
 
         // if last computation terminated in a bad way, then reset board as new
         if( !isCurrentBoardLeftInValidState ) {
             // this shouldn't take too much
-            currentBoard = new WeightedMNKBoard(currentBoard.M, currentBoard.N, currentBoard.K, MC );
-            isCurrentBoardLeftInValidState = true;
+            restoreTrackingBoard(FC, MC);
         }
         else {
             if (MC.length > 0) {
@@ -71,7 +99,7 @@ public class AdaptiveMyPlayer extends MyPlayer {
             isCurrentBoardLeftInValidState = false;
             // get best fallback outcome
             outcome = bestOutcomes.firstElement();
-
+            System.out.println("Exit quickly");
         }
         bestOutcomes = null;
 
