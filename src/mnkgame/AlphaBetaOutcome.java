@@ -44,4 +44,13 @@ class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
             }
         }
     }
+
+    @Override
+    public String toString() {
+        return "AlphaBetaOutcome{" +
+                "eval=" + eval +
+                ", move=" + move +
+                ", depth=" + depth +
+                '}';
+    }
 }
