@@ -36,6 +36,18 @@ public class Utils {
         }
     }
 
+    public static String toString(MNKBoard board) {
+        if( board instanceof WeightedMNKBoard) {
+            return board.toString();
+        }
+        else {
+            String s = "";
+            for (int i = 0; i < board.B.length; i++) {
+                s += Utils.toString( board.B[ i ] ) + "\n";
+            }
+            return s;
+        }
+    }
 
     public static String toString(int[] weights, int max) {
         String[] cells = new String[weights.length];

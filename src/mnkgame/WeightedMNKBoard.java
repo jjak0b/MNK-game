@@ -51,21 +51,29 @@ public class WeightedMNKBoard extends MNKBoard {
         weights = new int[2][M][N];
         initWeights();
 
+        Comparator<MNKCell>[] playerHeatMapComparators = new Comparator[2];
+        for (int i = 0; i < 2; i++) {
+            int index = i;
+            playerHeatMapComparators[i] = new Comparator<>() {
+                int playerIndex = index;
+                @Override
+                public int compare(MNKCell o1, MNKCell o2) {
+                    return weights[playerIndex][o2.i][o2.j] - weights[playerIndex][o1.i][o1.j];
+                }
+            };
+        }
+        Comparator<MNKCell> combinedPlayerHeatMapComparator = new Comparator<>() {
+            @Override
+            public int compare(MNKCell o1, MNKCell o2) {
+                return playerHeatMapComparators[0].compare(o1, o2) + playerHeatMapComparators[1].compare(o1, o2);
+            }
+        };
+
         freeCellsQueue = new PriorityQueue[] {
                 // player 0 watch its weights
-                new PriorityQueue<>(FC.size(), new Comparator<MNKCell>() {
-                    @Override
-                    public int compare(MNKCell o1, MNKCell o2) {
-                        return weights[0][o2.i][o2.j] - weights[0][o1.i][o1.j];
-                    }
-                }),
+                new PriorityQueue<>(FC.size(), combinedPlayerHeatMapComparator),
                 // player 1 watch its weights
-                new PriorityQueue<>(FC.size(), new Comparator<MNKCell>() {
-                    @Override
-                    public int compare(MNKCell o1, MNKCell o2) {
-                        return weights[1][o2.i][o2.j] - weights[1][o1.i][o1.j];
-                    }
-                })
+                new PriorityQueue<>(FC.size(), combinedPlayerHeatMapComparator)
         };
 
         freeCellsQueue[0].addAll( FC );

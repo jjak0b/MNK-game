@@ -20,55 +20,59 @@ public class GoodMemoryPlayer extends MyPlayer {
 
 
     @Override
-    protected AlphaBetaOutcome alphaBetaPruning(WeightedMNKBoard tree, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) {
+    protected AlphaBetaOutcome alphaBetaPruning(MNKBoard board, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) {
 
+        WeightedMNKBoard tree = (WeightedMNKBoard) board;
         int a = alpha;
         int b = beta;
         BigInteger key = tree.getCurrentState();
         AlphaBetaOutcome outcome;
 
-        CachedResult result = this.cachedResults.get( key );
-        float weightedValue;
-        if (result != null && depth <= result.depth ) {
-            weightedValue = result.getWeightedValue();
-            switch (result.type) {
+        CachedResult bestOutcome = this.cachedResults.get( key );
+        int weightedValue;
+        if (bestOutcome != null && depth >= bestOutcome.depth ) {
+            weightedValue = bestOutcome.getWeightedValue();
+
+            switch (bestOutcome.type) {
                 case EXACT:
                     // transposition has a deeper or equal search depth
                     // we can stop here as we already know the value
                     // returned by the evaluation function
-                    return result;
+                    return bestOutcome;
                 case LOWER_BOUND:
-                    if ( weightedValue > alpha) {
-                        a = weightedValue;
-                    }
+                    a = Math.max(a, weightedValue);
                     break;
                 case UPPER_BOUND:
-                    if ( weightedValue < beta ) {
-                        b = weightedValue;
-                    }
+                    b = Math.min(b, weightedValue);
                     break;
             }
 
             if (b <= a) {
-                return result;
+                return bestOutcome;
             }
         }
 
         outcome = super.alphaBetaPruning(tree, shouldMaximize, a, b, depth, depthLeft, endTime);
         weightedValue = outcome.getWeightedValue();
-        if (weightedValue <= a) {
+
+        // minimize
+        if ( (bestOutcome == null || outcome.compareTo(bestOutcome) < 0) ) { // weightedValue <= a
+            // b = outcome.getWeightedValue();
             cachedResults.put( key, new CachedResult( outcome, CachedResult.ValueType.UPPER_BOUND ) );
-            // saveTransposition(key, transposition, outcome.eval, depth, FLAG_UPPERBOUND);
         }
-        else if (weightedValue >= beta) {
+        // maximize
+        else if ((bestOutcome == null || outcome.compareTo(bestOutcome) > 0) ) { // weightedValue >= b
+            // a = outcome.getWeightedValue();
             cachedResults.put( key, new CachedResult( outcome, CachedResult.ValueType.LOWER_BOUND ) );
-            // saveTransposition(key, transposition, score, depth, FLAG_LOWERBOUND);
         }
         else {
             cachedResults.put( key, new CachedResult( outcome, CachedResult.ValueType.EXACT ) );
-            // saveTransposition(key, transposition, score, depth, FLAG_EXACT);
         }
 
+
+        if( depth == 0 ) {
+            cachedResults.remove( key );
+        }
         return outcome;
     }
 
