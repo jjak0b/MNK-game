@@ -1,6 +1,9 @@
 package mnkgame;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class Utils {
 
@@ -116,5 +119,153 @@ public class Utils {
         };
 
 
+    }
+
+    public static class QuickSortVariant {
+
+        public static final <T> void swap (T[] a, int i, int j) {
+            T t = a[i];
+            a[i] = a[j];
+            a[j] = t;
+        }
+
+        public static final <T> void swap (List<T> l, int i, int j) {
+            Collections.swap(l, i, j);
+        }
+
+        /**
+         * Algorithm of National flag
+         * @param A
+         * @param start
+         * @param end
+         * @param x
+         * @param comparator
+         * @param <T>
+         * @return 2 indexes: first and last index of values equals to x
+         */
+        public static <T> int[] partition(T[] A, int start, int end, T x , Comparator<T> comparator) {
+            int i = start,
+                j = start,
+                k = end;
+            while( j <= k ) {
+                int comparison = comparator.compare(A[j], x);
+                if( comparison < 0 ) {
+                    if( i < j ) {
+                        swap(A, i, j);
+                    }
+                    ++i;
+                    ++j;
+                }
+                else if( comparison > 0 ) {
+                    swap(A, j, k);
+                    --k;
+                }
+                else {
+                    ++j;
+                }
+            }
+
+            // System.out.println(" 0 - " + i + " - " + j);
+            return new int[]{i, j-1};
+        }
+
+        /**
+         * Sort the last k elements in ascending order according to the provided comparator
+         * where the last k are from e, so in reverse direction.
+         * The other elements not in range s-e are untouched.
+         *
+         * @param s usually = 0
+         * @param e usually = v.lenght-1
+         * @param k count of elements to sort
+         * @param v
+         * @param comparator
+         * @param <T>
+         */
+        public static <T> void sortMaxK( int s, int e, int k, T[] v, Comparator<T> comparator) {
+            int
+                n = e + 1 -s, // vector size to consider
+                w,
+                startX, endX;
+
+            T x; // v[ w ]
+            while (s >= 0 && e < v.length ) {
+                w =  Math.floorDiv(e+s, 2);
+                x = v[w];
+                // System.out.println("Partitioning from " + s + " to " + e + " with val " + x );
+                int[] indexes = partition(v, s, e, x, comparator );
+                startX = indexes[0];
+                endX = indexes[1];
+                // System.out.println(Arrays.toString(v));
+                // System.out.println("From 0 to " + (startX-1) + " are < " + x );
+                // System.out.println("From " + startX + " to " + endX +" are = " + x );
+                // System.out.println("From " + (endX+1) + " to " + e +" are > " + x );
+                // the picked element is > of (n-k)-th element
+                if( n - k < startX )
+                    e = startX-1;
+                // the picked element is < of (n-k)-th element
+                else if( n - k > endX )
+                    s = endX + 1;
+                // the picked element is the (n-k)-th element
+                else
+                    break;
+            }
+        }
+    }
+
+
+    public static class BufferSorter<T> {
+        int unsortedCount;
+        T[] buffer;
+        Comparator<T> comparator;
+
+        public BufferSorter(T[] buffer, Comparator<T> comparator ) {
+            this.buffer = buffer;
+            this.comparator = comparator;
+            this.unsortedCount = this.buffer.length;
+        }
+
+        public T[] getBuffer() {
+            return buffer;
+        }
+
+        public int getUnsortedCount() {
+            return unsortedCount;
+        }
+        /**
+         * Partially Sort the greatest $count elements in ascending order in the last $count positions of the unsorted buffer
+         * In other words sort next $count elements starting from index 0 to last unsorted index
+         * after this call last unsorted index decrease by $count.
+         * Note a pure ascending order is not respected, but it's granted that the $count elements are the greatest in the unsorted left set
+         * A use case of this function can be represented from the following code:
+         * <pre><code>
+         *  int count = 5;
+         *  Integer[] buffer = bs.getBuffer();
+         *
+         *  int major, minor;
+         *  do {
+         *      major = bs.sortNext(count);
+         *      minor = Math.max(0, 1 + major - count);
+         *      for (int i = major; i >= minor ; i-- ) {
+         *          print( buffer[i]);
+         *      }
+         *
+         *  } while( bs.getUnsortedCount() > 0);
+         * </code></pre>
+         * @param count
+         * @return the end index of last element ordered in ascending order,
+         * so it's associated to the greatest value in the considered set of ordered elements
+         */
+        public int sortNext(int count) {
+            count = Math.min(count, this.unsortedCount);
+            if(count <= 0) return -1;
+
+            int endIndex = this.unsortedCount-1;
+
+            QuickSortVariant.sortMaxK(0, endIndex, count, buffer, comparator);
+
+            this.unsortedCount -= count;
+
+            return endIndex;
+        }
     }
 }
