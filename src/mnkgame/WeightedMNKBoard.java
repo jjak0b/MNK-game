@@ -26,10 +26,15 @@ public class WeightedMNKBoard extends MNKBoard {
      */
     protected BigInteger currentState;
 
-    final int CELL_STATE_BITS_FOR_PLAYER[] = {
-        1, // first player 01
-        2 // second player 10
+    final BigInteger[] CELL_STATE_BITS_FOR_PLAYER = {
+        BigInteger.ONE, // first player 01
+        BigInteger.TWO // second player 10
     };
+
+    // fast access to array index to matrix indexes map conversion, avoid use of a lot of runtime multiplications
+    private final int[][] arrayToMatrixIndexMap;
+    // fast access to matrix indexes to array index map conversion, avoid use of a lot of runtime multiplications
+    private final int[][] matrixToArrayIndexMap;
 
     public BigInteger getCurrentState() {
         return currentState;
@@ -45,6 +50,12 @@ public class WeightedMNKBoard extends MNKBoard {
      */
     public WeightedMNKBoard(int M, int N, int K ) throws IllegalArgumentException {
         super(M, N, K);
+
+        final int count = M * N;
+
+        arrayToMatrixIndexMap = new int[count][2];
+        matrixToArrayIndexMap = new int[M][N];
+        initIndexConversionsMaps();
 
         currentState = BigInteger.ZERO;
 
@@ -97,8 +108,20 @@ public class WeightedMNKBoard extends MNKBoard {
                     weights[p][i][j] = 0;
     }
 
-    private int getArrayIndexFromMatrixIndexes(int i, int j ) {
-        return (i * M) + j;
+    private int getArrayIndexFromMatrixIndexes(int i, int j) {
+        // return (i * M) + j;
+        return matrixToArrayIndexMap[i][j];
+    }
+
+    private int[] getMatrixIndexesFromArrayIndex(int index) {
+        return arrayToMatrixIndexMap[index];
+    }
+
+    private int[] getMatrixIndexesFromArrayIndex(int index, int[] buffer ) {
+        // buffer[0] = index / M;
+        // buffer[1] = index % M;
+        Vectors.vectorCopy(buffer, arrayToMatrixIndexMap[index] );
+        return buffer;
     }
 
 // https://inst.eecs.berkeley.edu/~cs61bl/r//cur/hashing/hashing-ttt.html
@@ -121,7 +144,7 @@ public class WeightedMNKBoard extends MNKBoard {
         // mark bitfield at (i, j)
         currentState = currentState.xor(
             // set the mark, shifting left by X * 2 positions, where X is the array coordinate of the matrix
-            BigInteger.valueOf( CELL_STATE_BITS_FOR_PLAYER[markingPlayer] ).shiftLeft( getArrayIndexFromMatrixIndexes(i, j) * 2 )
+            CELL_STATE_BITS_FOR_PLAYER[markingPlayer].shiftLeft( matrixToArrayIndexMap[i][j] * 2 )
         );
 
         MNKGameState gameState = super.markCell(i, j);
@@ -156,7 +179,7 @@ public class WeightedMNKBoard extends MNKBoard {
             // unmark bitfield at (i, j)
             currentState = currentState.xor(
                 // set the mark, shifting left by X * 2 positions, where X is the array coordinate of the matrix
-                BigInteger.valueOf( CELL_STATE_BITS_FOR_PLAYER[unMarkingPlayer] ).shiftLeft( getArrayIndexFromMatrixIndexes(oldc.i, oldc.j) * 2 )
+                CELL_STATE_BITS_FOR_PLAYER[unMarkingPlayer].shiftLeft( matrixToArrayIndexMap[oldc.i][oldc.j] * 2 )
             );
         }
 
