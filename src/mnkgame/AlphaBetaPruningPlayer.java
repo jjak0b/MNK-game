@@ -26,8 +26,8 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     protected Stack<AlphaBetaOutcome> bestOutcomes;
 
     // DEBUG
-    public static final boolean DEBUG_SHOW_BOARD = true;
-    public static final boolean DEBUG_SHOW_STATS = true;
+    public static final boolean DEBUG_SHOW_BOARD = Debug.Player.DEBUG_SHOW_BOARD;
+    public static final boolean DEBUG_SHOW_STATS = Debug.Player.DEBUG_SHOW_STATS;
 
     public AlphaBetaPruningPlayer() {
 

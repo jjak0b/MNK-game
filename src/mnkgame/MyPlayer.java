@@ -42,10 +42,10 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     protected int DIRTY_CELLS_SIZE;
 
     // debug
-    public static final boolean DEBUG_SHOW_STREAKS = false;
-    public static final boolean DEBUG_SHOW_USEFUL = true;
-    public static final boolean DEBUG_SHOW_WEIGHTS = true;
-    public static final boolean DEBUG_SHOW_CANDIDATES = true;
+    public static final boolean DEBUG_SHOW_STREAKS = Debug.Player.DEBUG_SHOW_STREAKS;
+    public static final boolean DEBUG_SHOW_USEFUL = Debug.Player.DEBUG_SHOW_USEFUL;
+    public static final boolean DEBUG_SHOW_WEIGHTS = Debug.Player.DEBUG_SHOW_WEIGHTS;
+    public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
 
 
     public MyPlayer() {
