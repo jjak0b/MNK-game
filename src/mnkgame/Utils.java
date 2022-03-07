@@ -1,9 +1,6 @@
 package mnkgame;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public class Utils {
 
@@ -31,6 +28,28 @@ public class Utils {
             { { -1, 1 }, { 1, -1 } }
     };
 
+    public static class Weight extends MNKCell implements Comparable<Weight> {
+        public int value;
+
+        public MNKCell getCell() {
+            return this;
+        }
+
+        public Weight( MNKCell cell, int value ) {
+            super(cell.i, cell.j, cell.state);
+            this.value = value;
+        }
+
+        @Override
+        public int compareTo(Weight o) {
+            int compare = Integer.compare(value, o.value);
+            if( compare == 0 ) {
+                return Utils.compare(this, o);
+            }
+            return compare;
+        }
+    }
+
     public static int getPlayerIndex(MNKCellState state) {
         switch (state) {
             case P1: return 0;
@@ -52,41 +71,29 @@ public class Utils {
         }
     }
 
-    public static String toString(int[] weights, int max) {
-        String[] cells = new String[weights.length];
-        for (int i = 0; i < weights.length; i++) {
-            cells[i] = "";
-            int index;
-            int aColorSpace = Math.max (1, max / ConsoleColors.RAINBOW.length);
-
-            index = weights[i] / aColorSpace;
-            index = Math.max (0, (ConsoleColors.RAINBOW.length-1) - index );
-            index = Math.min(ConsoleColors.RAINBOW.length-1, index );
-
-            String color = ConsoleColors.RAINBOW[index];
-
-            cells[i] += color + weights[i] + ConsoleColors.RESET;
-
-        }
-        return Arrays.toString(cells);
-    }
     public static String toString(MNKCellState[] cellStates) {
         String[] cells = new String[cellStates.length];
         for (int i = 0; i < cellStates.length; i++) {
             cells[i] = "";
             switch (cellStates[i]) {
                 case P1:
-                    cells[i] = ConsoleColors.RED;
+                    if( Debug.DEBUG_USE_COLORS )
+                        cells[i] = ConsoleColors.RED;
                     cells[i] += "  ";
                     break;
                 case P2:
-                    cells[i] = ConsoleColors.BLUE;
+                    if( Debug.DEBUG_USE_COLORS )
+                        cells[i] = ConsoleColors.BLUE;
                     cells[i] += "  ";
                     break;
                 case FREE:
                     break;
             }
-            cells[i] += cellStates[i] + ConsoleColors.RESET;
+
+            if( Debug.DEBUG_USE_COLORS )
+                cells[i] += cellStates[i] + ConsoleColors.RESET;
+            else
+                cells[i] += cellStates[i];
 
         }
         return Arrays.toString(cells);
@@ -109,29 +116,29 @@ public class Utils {
 
         public static final String[] RAINBOW = {
                 RED,
-                YELLOW,
                 PURPLE,
+                YELLOW,
                 GREEN,
                 CYAN,
                 BLUE,
                 WHITE,
-                RESET
+                BLACK
         };
 
 
     }
 
+    public static final <T> void swap (T[] a, int i, int j) {
+        T t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+    }
+
+    public static final <T> void swap (List<T> l, int i, int j) {
+        Collections.swap(l, i, j);
+    }
+
     public static class QuickSortVariant {
-
-        public static final <T> void swap (T[] a, int i, int j) {
-            T t = a[i];
-            a[i] = a[j];
-            a[j] = t;
-        }
-
-        public static final <T> void swap (List<T> l, int i, int j) {
-            Collections.swap(l, i, j);
-        }
 
         /**
          * Algorithm of National flag
@@ -165,7 +172,7 @@ public class Utils {
                 }
             }
 
-            // System.out.println(" 0 - " + i + " - " + j);
+            // Debug.println(" 0 - " + i + " - " + j);
             return new int[]{i, j-1};
         }
 
@@ -187,31 +194,51 @@ public class Utils {
                 w,
                 startX, endX;
 
+            final int lowerBoundIndex = n-k;
+            boolean keepSort = true;
             T x; // v[ w ]
-            while (s >= 0 && e < v.length ) {
+            while ( keepSort ) {
+                // pivot
                 w =  Math.floorDiv(e+s, 2);
                 x = v[w];
-                // System.out.println("Partitioning from " + s + " to " + e + " with val " + x );
+
+                // Debug.println("Partitioning from " + s + " to " + e + " with val " + x );
                 int[] indexes = partition(v, s, e, x, comparator );
                 startX = indexes[0];
                 endX = indexes[1];
-                // System.out.println(Arrays.toString(v));
-                // System.out.println("From 0 to " + (startX-1) + " are < " + x );
-                // System.out.println("From " + startX + " to " + endX +" are = " + x );
-                // System.out.println("From " + (endX+1) + " to " + e +" are > " + x );
+                // Debug.println(Arrays.toString(v));
+                // Debug.println("From 0 to " + (startX-1) + " are < " + x );
+                // Debug.println("From " + startX + " to " + endX +" are = " + x );
+                // Debug.println("From " + (endX+1) + " to " + e +" are > " + x );
                 // the picked element is > of (n-k)-th element
-                if( n - k < startX )
+                if( lowerBoundIndex < startX )
                     e = startX-1;
                 // the picked element is < of (n-k)-th element
-                else if( n - k > endX )
+                else if( lowerBoundIndex > endX )
                     s = endX + 1;
                 // the picked element is the (n-k)-th element
                 else
-                    break;
+                    keepSort = false;
             }
         }
     }
 
+    public static class Sort {
+        public static <T> void insertionSort(T[] A, int fromIndex, int toIndex, Comparator<T> comparator) {
+            if( toIndex <= fromIndex) return;
+
+            final int count = toIndex+1;
+            for (int i = fromIndex+1; i < count; i++) {
+                T value = A[i];
+                int j = i-1;
+                while( j >= 0 && comparator.compare(A[j], value) > 0 ) {
+                    A[j+1] = A[j];
+                    j--;
+                }
+                A[j+1] = value;
+            }
+        }
+    }
 
     public static class BufferSorter<T> {
         int unsortedCount;
@@ -267,5 +294,34 @@ public class Utils {
 
             return endIndex;
         }
+    }
+
+    public static int compare(MNKCell o1, MNKCell o2) {
+        int compare = Integer.compare(o1.i, o2.i);
+        if( compare == 0) compare = Integer.compare(o1.j, o2.j );
+        return compare;
+    }
+
+
+    public static <T> int min( T[] buffer, Comparator<T> comparator ) {
+        int min = 0;
+        for (int i = 1; i < buffer.length; i++) {
+            int comp = comparator.compare(buffer[i], buffer[min]);
+            if( comp < 0 ) {
+                min = i;
+            }
+        }
+        return min;
+    }
+
+    public static <T> int max( T[] buffer, Comparator<T> comparator ) {
+        int max = 0;
+        for (int i = 1; i < buffer.length; i++) {
+            int comp = comparator.compare(buffer[i], buffer[max]);
+            if( comp > 0 ) {
+                max = i;
+            }
+        }
+        return max;
     }
 }

@@ -2,8 +2,9 @@ package mnkgame;
 
 import java.math.BigInteger;
 import java.util.HashMap;
+import java.util.concurrent.TimeoutException;
 
-public class GoodMemoryPlayer extends MyPlayer {
+public class GoodMemoryPlayer extends AdaptiveMyPlayer {
 
     private HashMap<BigInteger, CachedResult> cachedResults;
 
@@ -11,16 +12,11 @@ public class GoodMemoryPlayer extends MyPlayer {
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.initPlayer(M, N, K, first, timeout_in_secs);
         cachedResults = new HashMap<>((int) Math.ceil((M*N) / 0.75));
+        estimatedPercentOfTimeRequiredToExit = 2f/100f;
     }
 
     @Override
-    public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
-        return super.selectCell(FC, MC);
-    }
-
-
-    @Override
-    protected AlphaBetaOutcome alphaBetaPruning(MNKBoard board, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) {
+    protected AlphaBetaOutcome alphaBetaPruning_(MNKBoard board, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) throws TimeoutException {
 
         WeightedMNKBoard tree = (WeightedMNKBoard) board;
         int a = alpha;
@@ -52,7 +48,7 @@ public class GoodMemoryPlayer extends MyPlayer {
             }
         }
 
-        outcome = super.alphaBetaPruning(tree, shouldMaximize, a, b, depth, depthLeft, endTime);
+        outcome = super.alphaBetaPruning_(tree, shouldMaximize, a, b, depth, depthLeft, endTime);
         weightedValue = outcome.getWeightedValue();
 
         // minimize

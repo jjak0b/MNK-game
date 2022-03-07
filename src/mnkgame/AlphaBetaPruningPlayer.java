@@ -1,7 +1,6 @@
 package mnkgame;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class AlphaBetaPruningPlayer implements MNKPlayer{
     protected Random rand;
@@ -24,6 +23,11 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     protected long averageWorkTime;
 
     protected MNKBoard currentBoard;
+    protected Stack<AlphaBetaOutcome> bestOutcomes;
+
+    // DEBUG
+    public static final boolean DEBUG_SHOW_BOARD = true;
+    public static final boolean DEBUG_SHOW_STATS = true;
 
     public AlphaBetaPruningPlayer() {
 
@@ -86,6 +90,9 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
             choice = MC[MC.length - 1]; // Save the last move in the local MNKBoard
             currentBoard.markCell(choice.i, choice.j);
             ++round;
+
+            if( DEBUG_SHOW_BOARD )
+                Debug.println( "after move:\n" + boardToString() );
         }
 
         AlphaBetaOutcome outcome = alphaBetaPruning(
@@ -101,12 +108,15 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
         long elapsed = end-start;
         long timeLeft = (endTime-end);
 
-        printStats(outcome, elapsed, timeLeft);
+        if( DEBUG_SHOW_STATS )
+            printStats(outcome, elapsed, timeLeft);
 
-        // System.out.println( Arrays.toString( currentBoard.getFreeCells() ) );
-        // System.out.println( "if " + currentBoard.currentPlayer()  + " choose " +  outcome.move + " -> " + outcome.eval );
+        // Debug.println( Arrays.toString( currentBoard.getFreeCells() ) );
+        // Debug.println( "if " + currentBoard.currentPlayer()  + " choose " +  outcome.move + " -> " + outcome.eval );
         currentBoard.markCell( outcome.move.i, outcome.move.j );
-        System.out.println( "after move:\n" + Utils.toString(currentBoard) );
+
+        if( DEBUG_SHOW_BOARD )
+            Debug.println( "after move:\n" + boardToString() );
 
         ++round;
         return outcome.move;
@@ -118,7 +128,7 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
         maxWorkTime = Math.max(maxWorkTime, elapsed);
         minWorkTime = Math.min(minWorkTime, elapsed);
 
-        System.out.println( "Euristic: " + outcome.getWeightedValue() + "\t" +
+        Debug.println( "Euristic: " +  (outcome != null ? outcome.eval : null) + "\t" +
                 "Decision made in " + (elapsed/1000.0) + "\t" +
                 "Left Time: " + (timeLeft/1000.0) + "\t" +
                 "Average Time: " + (averageWorkTime/1000.0) + "\t" +
@@ -135,24 +145,24 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
         int score = STANDARD_SCORES.get(gameState);
 /* // keep as reference
         if( gameState == this.STATE_WIN ) {
-            // System.out.println( getTabForDepth( depth-1 ) + MY_MARK_STATE +  "-> Win state");
+            // Debug.println( getTabForDepth( depth-1 ) + MY_MARK_STATE +  "-> Win state");
             // score = 1f;
         }
         else if( gameState == this.STATE_LOSE ) {
-            // System.out.println( getTabForDepth( depth-1 ) + MY_MARK_STATE +  "-> Lose state");
+            // Debug.println( getTabForDepth( depth-1 ) + MY_MARK_STATE +  "-> Lose state");
             // score = -1f;
         }
         else if( gameState == MNKGameState.DRAW ) {
-            // System.out.println( getTabForDepth( depth-1 ) + "Draw state");
+            // Debug.println( getTabForDepth( depth-1 ) + "Draw state");
             // score = 0f;
         }
         else
 */
         if (gameState == MNKGameState.OPEN) { // game is open
-            // System.out.println( getTabForDepth( depth-1 ) + "Heuristic state");
+            // Debug.println( getTabForDepth( depth-1 ) + "Heuristic state");
             // TODO: here we should do an Heuristic evaluation
 
-            score = score / Math.max(1, depth);
+            // score = score / Math.max(1, depth);
         }
 
         outcome.eval = score;
@@ -174,37 +184,39 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
         // on last if condition may would be a match in a always win/lost configuration
         if (depthLeft == 0 || tree.gameState() != MNKGameState.OPEN) {
             return evaluate(tree, depth, shouldMaximize);
-        } else {
-            AlphaBetaOutcome bestOutcome = null, outcome = null;
-            // System.out.println( getPlayerByIndex( shouldMaximize ? 0 : 1 )+ " Move " + depth );
+        }
+        else {
+            AlphaBetaOutcome
+                    bestOutcome = null,
+                    outcome = null;
 
-            Iterator<MNKCell> moves = getCellCandidates(tree).iterator();
+            // Debug.println( getPlayerByIndex( shouldMaximize ? 0 : 1 )+ " Move " + depth );
 
-            while (moves.hasNext()) {
+            for ( MNKCell move : getCellCandidates(tree)) {
 
-                MNKCell move = moves.next();
                 mark(tree, move, depth);
 
                 outcome = alphaBetaPruning(tree, !shouldMaximize, a, b, depth + 1, depthLeft - 1, endTime);
 
                 unMark(tree, depth);
 
-
                 // minimize
-                if (!shouldMaximize && (bestOutcome == null || outcome.compareTo(bestOutcome) < 0)) {
-                    bestOutcome = outcome;
-                    bestOutcome.move = move;
+                if (!shouldMaximize) {
+                    bestOutcome = bestOutcome != null ? min(bestOutcome, outcome) : outcome;
                     b = Math.min(b, outcome.eval);
                 }
                 // maximize
-                else if (shouldMaximize && (bestOutcome == null || outcome.compareTo(bestOutcome) > 0)) {
-                    bestOutcome = outcome;
-                    bestOutcome.move = move;
+                else {
+                    bestOutcome = bestOutcome != null ? max(bestOutcome, outcome) : outcome;
                     a = Math.max(a, outcome.eval);
                 }
 
+                // if first run or just override best outcome, then replace move
+                if( bestOutcome.move == outcome.move || bestOutcome.move == null)
+                    bestOutcome.move = move;
+
                 if (System.currentTimeMillis() > endTime) {
-                    System.out.println("Exiting quickly");
+                    Debug.println("Exiting quickly");
                     break;
                 }
 
@@ -212,37 +224,46 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
                     break;
                 }
 
-                // System.out.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
+                // Debug.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
             }
             return bestOutcome;
         }
     }
 
+    public AlphaBetaOutcome min(AlphaBetaOutcome o1, AlphaBetaOutcome o2) {
+        return AlphaBetaOutcome.min(o1, o2);
+    }
 
+    public AlphaBetaOutcome max(AlphaBetaOutcome o1, AlphaBetaOutcome o2) {
+        return AlphaBetaOutcome.max(o1, o2);
+    }
 
     /**
      * @return moves candidates
      */
-    protected List<MNKCell> getCellCandidates(MNKBoard board) {
-        return Arrays.stream(board.getFreeCells())
-                .collect(Collectors.toList());
+    public MNKCell[] getCellCandidates(MNKBoard board) {
+        return board.getFreeCells();
     }
 
-    protected void unMark(MNKBoard tree, int depth) {
-        //System.out.println( "\t" + tree.currentPlayer + " Unmarking:" + tree.MC.getLast() + " @ " + depth );
+    public void unMark(MNKBoard tree, int depth) {
+        //Debug.println( "\t" + tree.currentPlayer + " Unmarking:" + tree.MC.getLast() + " @ " + depth );
         MNKCell unmarked = tree.MC.getLast();
         tree.unmarkCell();
-        // System.out.println( getPlayerByIndex( tree.currentPlayer() ) + getTabForDepth( depth ) +  "Unmarking:" + unmarked + " @ " + depth);
+        // Debug.println( getPlayerByIndex( tree.currentPlayer() ) + getTabForDepth( depth ) +  "Unmarking:" + unmarked + " @ " + depth);
         // it.add(MC.remove());
     }
 
-    protected void mark(MNKBoard tree, MNKCell marked, int depth) {
+    public void mark(MNKBoard tree, MNKCell marked, int depth) {
         // MNKCell marked = it.next();
         int playerIndex = tree.currentPlayer();
-        // System.out.println( getPlayerByIndex( tree.currentPlayer() ) + getTabForDepth( depth ) +  "Marking:" + marked + " @ " + depth);
+        // Debug.println( getPlayerByIndex( tree.currentPlayer() ) + getTabForDepth( depth ) +  "Marking:" + marked + " @ " + depth);
         tree.markCell(marked.i, marked.j);
         // it.remove();
         // MC.add(marked);
+    }
+
+    public String boardToString() {
+        return Utils.toString(currentBoard);
     }
 
     /**

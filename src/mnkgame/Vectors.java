@@ -1,4 +1,7 @@
 package mnkgame;
+
+import java.util.function.BiFunction;
+
 // Utility functions
 public class Vectors {
     /**
@@ -36,4 +39,26 @@ public class Vectors {
         for (int i = 0; i < source.length; i++) source[i] += direction[i];
         return source;
     }
+
+    /**
+     * Iterate over both sides of a direction while callback return true (source is navigated once per side)
+     * @param source
+     * @param directionType
+     * @param callback
+     *
+     */
+    public static void iterate(int[] source, int directionType, BiFunction<int[], Integer, Boolean> callback ) {
+
+        final int[] index = new int[source.length];
+        int[][] directionsOffsets = Utils.DIRECTIONS_OFFSETS[directionType];
+        for (int side = 0; side < directionsOffsets.length; side++) {
+            int[] step = new int[directionsOffsets[side].length];
+            Vectors.vectorCopy(index, source);
+
+            while (callback.apply(index, side)) {
+                Vectors.vectorSum(source, step);
+            }
+        }
+    }
+
 }

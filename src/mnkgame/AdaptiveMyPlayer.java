@@ -4,47 +4,20 @@ import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 public class AdaptiveMyPlayer extends MyPlayer {
-    protected int maxDepthSearch = 5;
-    protected float estimatedPercentOfTimeRequiredToExit = 0.5f/100f;
-    protected Stack<AlphaBetaOutcome> bestOutcomes;
+    protected float estimatedPercentOfTimeRequiredToExit = 1f/100f;
 
-    protected void restoreTrackingBoard(MNKCell[] FC, MNKCell[] MC) {
-        // we suppose currentBoard.MC.size() >= MC.length
-
-        // we have to restore last valid state, so without last enemy move and this player's last move
-        int countToMark = 2;
-        int countMCBeforeInvalid = MC.length - countToMark;
-        int countToUnMark = currentBoard.MC.size()-countMCBeforeInvalid;
-
-        // un-mark n=difference times and mark next 2 moves (old this player move and the next opponent move )
-        int requiredOperationsToRestoreWay1 = countToUnMark + countToMark;
-        int requiredOperationsToRestoreWay2 = MC.length;
-
-
-        if( requiredOperationsToRestoreWay1 <= requiredOperationsToRestoreWay2 ) {
-            // then un-mark all until we reach the old valid state.
-            for (int i = 0; i < countToUnMark; i++) {
-                unMark(currentBoard, -1);
-            }
-            // and then mark to current state
-            for (int i = 0; i < countToMark; i++) {
-                mark(currentBoard, MC[ countMCBeforeInvalid + i ], -1);
-            }
-        }
-        // otherwise is more convenient a new instance
-        else {
-            currentBoard = new WeightedMNKBoard(currentBoard.M, currentBoard.N, currentBoard.K, MC );
-        }
-
-        isCurrentBoardLeftInValidState = true;
-    }
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
         MNKCell choice = null;
+
+        long start = System.currentTimeMillis();
+        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
+        long workTime = start + ( timeout - expectedTimeRequiredToExit );
 
         // if last computation terminated in a bad way, then reset board as new
         if( !isCurrentBoardLeftInValidState ) {
             // this shouldn't take too much
             restoreTrackingBoard(FC, MC);
+            Debug.println( "restored board:\n" + currentBoard.toString() );
         }
         else {
             if (MC.length > 0) {
@@ -71,10 +44,8 @@ public class AdaptiveMyPlayer extends MyPlayer {
             return choice;
         }
 
-        // System.out.println( "before move:\n" + currentBoard.toString() );
-        long start = System.currentTimeMillis();
-        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
-        long workTime = start + ( timeout - expectedTimeRequiredToExit );
+        // Debug.println( "before move:\n" + currentBoard.toString() );
+
 
         // float markRatio = currentBoard.FC.size() != 0 ? (currentBoard.MC.size() / (float) (currentBoard.M * currentBoard.N ) ) : 0f;
         // int average = Math.round(currentBoard.M + currentBoard.N + currentBoard.K) / 3;
@@ -99,7 +70,7 @@ public class AdaptiveMyPlayer extends MyPlayer {
             isCurrentBoardLeftInValidState = false;
             // get best fallback outcome
             outcome = bestOutcomes.firstElement();
-            System.out.println("Exit quickly");
+            Debug.println("Exit quickly");
         }
         bestOutcomes = null;
 
@@ -108,23 +79,25 @@ public class AdaptiveMyPlayer extends MyPlayer {
         long timeLeft = timeout - elapsed;
         long exitTime = end - workTime;
         long realTimeRequiredToExit = end - workTime;
-
+/*
         if( timeLeft > timeout * estimatedPercentOfTimeRequiredToExit ){
             maxDepthSearch += 1;
         }
         else if( timeLeft < 0 ) {
             maxDepthSearch -= 1;
         }
-
+*/
         printStats(outcome, elapsed, timeLeft);
 
-        // System.out.println( Arrays.toString( currentBoard.getFreeCells() ) );
-        // System.out.println( "if " + currentBoard.currentPlayer()  + " choose " +  outcome.move + " -> " + outcome.eval );
+        // Debug.println( Arrays.toString( currentBoard.getFreeCells() ) );
+        // Debug.println( "if " + currentBoard.currentPlayer()  + " choose " +  outcome.move + " -> " + outcome.eval );
         if( isCurrentBoardLeftInValidState )
             currentBoard.markCell( outcome.move.i, outcome.move.j );
+        else
+            Debug.println(Utils.ConsoleColors.RED + "Tracking board has been left invalid");
         ++round;
 
-        System.out.println( "after move:\n" + currentBoard.toString() );
+        Debug.println( "after move:\n" + currentBoard.toString() );
         return outcome.move;
     }
 
@@ -141,6 +114,7 @@ public class AdaptiveMyPlayer extends MyPlayer {
      */
 
     protected AlphaBetaOutcome alphaBetaPruning_(MNKBoard tree, boolean shouldMaximize, int a, int b, int depth, int depthLeft, long endTime) throws TimeoutException {
+        WeightedMNKBoard board = (WeightedMNKBoard) tree;
 
         boolean isRootMove = depth == 0;
         // on last if condition may would be a match in a always win/lost configuration
@@ -148,13 +122,9 @@ public class AdaptiveMyPlayer extends MyPlayer {
             return evaluate(tree, depth, shouldMaximize);
         } else {
             AlphaBetaOutcome bestOutcome = null, outcome = null;
-            // System.out.println( getPlayerByIndex( shouldMaximize ? 0 : 1 )+ " Move " + depth );
+            // Debug.println( getPlayerByIndex( shouldMaximize ? 0 : 1 )+ " Move " + depth );
 
-            Iterator<MNKCell> moves = getCellCandidates(tree).iterator();
-
-            while (moves.hasNext()) {
-
-                MNKCell move = moves.next();
+            for (MNKCell move : getCellCandidates(tree)) {
 
                 // if this is the first simulated move of this player, then set this as fallback as best move
                 if( isRootMove && bestOutcomes.isEmpty() ) {
@@ -194,11 +164,13 @@ public class AdaptiveMyPlayer extends MyPlayer {
                 }
 
                 if (b <= a) { // a or b cutoff ( can't get better results )
-                    break;
-                }
 
-                // System.out.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
+                    // bs = null;
+                    return bestOutcome;
+                }
             }
+                // Debug.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
+           // }
 
             return bestOutcome;
         }

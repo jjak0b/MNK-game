@@ -21,28 +21,37 @@ class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
 
     @Override
     public int compareTo(AlphaBetaOutcome o) {
-        if (o == null) {
-            return 1;
-        } else {
-            int thisWeight = getWeightedValue();
-            int thatWeight = o.getWeightedValue();
+        return o == null ? 1 : Integer.compare(eval, o.eval);
+    }
 
-            if (thisWeight > thatWeight) {
-                // return 1;
-                return thisWeight - thatWeight;
-            } else if (thisWeight < thatWeight) {
-                // return -1;
-                return thisWeight - thatWeight;
-            } else {
-                if (depth < o.depth) {
-                    return 1;
-                } else if (depth > o.depth) {
-                    return -1;
-                } else {
-                    return 0;
-                }
-            }
-        }
+    public static AlphaBetaOutcome max(AlphaBetaOutcome o1, AlphaBetaOutcome o2) {
+        int compare = o1.compareTo(o2);
+
+        if( compare < 0 )
+            return o2;
+        else if( compare > 0 )
+            return o1;
+        else if( o1.depth < o2.depth )
+            return o1;
+        else if( o1.depth > o2.depth )
+            return o2;
+        else
+            return o1;
+    }
+
+    public static AlphaBetaOutcome min(AlphaBetaOutcome o1, AlphaBetaOutcome o2) {
+        int compare = o1.compareTo(o2);
+
+        if( compare < 0 )
+            return o1;
+        else if( compare > 0 )
+            return o2;
+        else if( o1.depth < o2.depth )
+            return o1;
+        else if( o1.depth > o2.depth )
+            return o2;
+        else
+            return o1;
     }
 
     @Override
