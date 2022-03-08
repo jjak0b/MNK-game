@@ -28,6 +28,7 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     // DEBUG
     public static final boolean DEBUG_SHOW_BOARD = Debug.Player.DEBUG_SHOW_BOARD;
     public static final boolean DEBUG_SHOW_STATS = Debug.Player.DEBUG_SHOW_STATS;
+    public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = Debug.Player.DEBUG_SHOW_MOVES_RESULT_ON_ROOT;
 
     public AlphaBetaPruningPlayer() {
 
@@ -197,6 +198,7 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
                 mark(tree, move, depth);
 
                 outcome = alphaBetaPruning(tree, !shouldMaximize, a, b, depth + 1, depthLeft - 1, endTime);
+                // outcome.move = move;
 
                 unMark(tree, depth);
 
@@ -210,6 +212,9 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
                     bestOutcome = bestOutcome != null ? max(bestOutcome, outcome) : outcome;
                     a = Math.max(a, outcome.eval);
                 }
+
+                if( DEBUG_SHOW_MOVES_RESULT_ON_ROOT && depth == 0 )
+                    Debug.println("Move " + move + " bring to " + outcome + " - best: " + bestOutcome );
 
                 // if first run or just override best outcome, then replace move
                 if( bestOutcome.move == outcome.move || bestOutcome.move == null)

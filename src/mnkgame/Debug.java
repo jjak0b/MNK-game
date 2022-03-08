@@ -23,5 +23,6 @@ public final class Debug {
         public static final boolean DEBUG_SHOW_USEFUL = true;
         public static final boolean DEBUG_SHOW_WEIGHTS = true;
         public static final boolean DEBUG_SHOW_CANDIDATES = true;
+        public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = true;
     }
 }
