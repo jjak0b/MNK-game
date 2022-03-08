@@ -1,7 +1,7 @@
 package mnkgame;
 
 public final class Debug {
-    public static final boolean DEBUG_ENABLED = true;
+    public static final boolean DEBUG_ENABLED = false;
     public static final boolean DEBUG_USE_COLORS = true;
 
     public static void println(String msg) {
@@ -17,12 +17,12 @@ public final class Debug {
     // singleton class used by players for debug
     protected static final class Player {
         // DEBUG
-        public static final boolean DEBUG_SHOW_BOARD = true;
-        public static final boolean DEBUG_SHOW_STATS = true;
+        public static final boolean DEBUG_SHOW_BOARD = false;
+        public static final boolean DEBUG_SHOW_STATS = false;
         public static final boolean DEBUG_SHOW_STREAKS = false;
-        public static final boolean DEBUG_SHOW_USEFUL = true;
-        public static final boolean DEBUG_SHOW_WEIGHTS = true;
-        public static final boolean DEBUG_SHOW_CANDIDATES = true;
-        public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = true;
+        public static final boolean DEBUG_SHOW_USEFUL = false;
+        public static final boolean DEBUG_SHOW_WEIGHTS = false;
+        public static final boolean DEBUG_SHOW_CANDIDATES = false;
+        public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = false;
     }
 }
