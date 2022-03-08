@@ -356,11 +356,11 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         return outcome.move;
     }
-/*
+
     @Override
     protected AlphaBetaOutcome evaluate(MNKBoard board, int depth, boolean isMyTurn) {
-        return evaluate((WeightedMNKBoard) board, depth, isMyTurn);
-    }*/
+        return evaluate((StatefulBoard) board, depth, isMyTurn);
+    }
 
     // TODO: WIP
     private AlphaBetaOutcome evaluate(StatefulBoard board, int depth, boolean isMyTurn) {
