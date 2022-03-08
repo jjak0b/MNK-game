@@ -782,18 +782,15 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                     // so this case can happens only after counting free cells
                     else if( otherMarkedCountOnSide[side] <= 0){
                         otherMarkedCountOnSide[side] = directionStreakWeights[index[side][0]][index[side][1]].value;
-                        if( otherMarkedCountOnSide[side] > 0 ) {
-                            Vectors.vectorScale(Vectors.vectorCopy(distance, direction), otherMarkedCountOnSide[side]-1);
-                            Vectors.vectorSum(index[side], distance);
-                        }
-                        /*
-                        // stop if other streak is too large
                         if( leftIterations[side] > otherMarkedCountOnSide[side] ) {
                             leftIterations[side] -= otherMarkedCountOnSide[side]-1;
                             // skip the other marked streak
+                            Vectors.vectorScale(Vectors.vectorCopy(distance, direction), otherMarkedCountOnSide[side]-1);
+                            Vectors.vectorSum(index[side], distance);
 
                             // canIncreaseStreak[side] = false;
-                        }*/
+                        }
+                        // else stop if other streak is too large
                     }
                     // else iterate on other marked streak, to see what happens next
                 }
@@ -807,6 +804,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                 // stop, we met an opponent streak
                 else {
                     canIncreaseStreak[side] = false;
+                    // ignore this iteration in iterations count
+                    leftIterations[side]++;
                 }
                 // i--;
                 leftIterations[side]--;
