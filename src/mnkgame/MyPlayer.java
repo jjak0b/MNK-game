@@ -128,8 +128,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
             int index = i;
             // heatmap comparators for descending order
             freeCellsIdsComparators[i] = new Comparator<>() {
-                int playerIndex = index;
-                int opponentIndex = 1 - index;
+                private final int indexPlayer = index;
+                private final int indexOpponent = 1 - index;
 
                 Utils.Weight[] wMax = new Utils.Weight[2];
 
@@ -149,8 +149,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                             int directionType = Utils.DIRECTIONS[d];
                             Utils.Weight w;
 
-                            Utils.Weight wP = usefulness[playerIndex][directionType][ index[0] ][ index[1] ];
-                            Utils.Weight wO = usefulness[opponentIndex][directionType][ index[0] ][ index[1] ];
+                            Utils.Weight wP = usefulness[indexPlayer][directionType][ index[0] ][ index[1] ];
+                            Utils.Weight wO = usefulness[indexOpponent][directionType][ index[0] ][ index[1] ];
 
                             int comp = wP.compareTo(wO);
 
@@ -953,7 +953,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         // Using sorting algorithm optimized for almost sorted arrays
         // Utils.Sort.insertionSort(cellsIds, 0, freeCellsCount-1, freeCellsIdsComparators[currentBoard.currentPlayer()]);
         // Using Tim sort since very fast in this case
-        Arrays.sort(cellsIds, 0, freeCellsCount-1, freeCellsIdsComparators[currentBoard.currentPlayer()]);
+        Arrays.sort(cellsIds, 0, freeCellsCount, freeCellsIdsComparators[currentBoard.currentPlayer()]);
 
         for (int i = 0; i < freeCellsCount; i++) {
             cellsIdsPositions[cellsIds[i]] = i;
