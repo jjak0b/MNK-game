@@ -6,7 +6,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     protected float estimatedPercentOfTimeRequiredToExit;
 
-    protected WeightedMNKBoard currentBoard;
+    protected StatefulBoard currentBoard;
 
     // protected UnionFindUndo<MNKCell>[][] comboMap;
     // protected boolean[][] isCellAddedToCombo;
@@ -177,7 +177,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     @Override
     protected void initTrackingBoard(int M, int N, int K) {
         try {
-            currentBoard = new WeightedMNKBoard(M, N, K);
+            currentBoard = new StatefulBoard(M, N, K);
             super.currentBoard = currentBoard;
             isCurrentBoardLeftInValidState = true;
         }
@@ -363,7 +363,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     }*/
 
     // TODO: WIP
-    private AlphaBetaOutcome evaluate(WeightedMNKBoard board, int depth, boolean isMyTurn) {
+    private AlphaBetaOutcome evaluate(StatefulBoard board, int depth, boolean isMyTurn) {
         MNKGameState gameState = board.gameState();
         AlphaBetaOutcome outcome = new AlphaBetaOutcome();
 

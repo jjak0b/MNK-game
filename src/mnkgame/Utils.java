@@ -59,7 +59,7 @@ public class Utils {
     }
 
     public static String toString(MNKBoard board) {
-        if( board instanceof WeightedMNKBoard) {
+        if( board instanceof StatefulBoard) {
             return board.toString();
         }
         else {

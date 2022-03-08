@@ -114,7 +114,7 @@ public class AdaptiveMyPlayer extends MyPlayer {
      */
 
     protected AlphaBetaOutcome alphaBetaPruning_(MNKBoard tree, boolean shouldMaximize, int a, int b, int depth, int depthLeft, long endTime) throws TimeoutException {
-        WeightedMNKBoard board = (WeightedMNKBoard) tree;
+        StatefulBoard board = (StatefulBoard) tree;
 
         boolean isRootMove = depth == 0;
         // on last if condition may would be a match in a always win/lost configuration

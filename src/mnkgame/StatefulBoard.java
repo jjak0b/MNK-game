@@ -3,7 +3,7 @@ package mnkgame;
 import java.math.BigInteger;
 import java.util.*;
 
-public class WeightedMNKBoard extends MNKBoard {
+public class StatefulBoard extends MNKBoard {
 
     /**
      * Unique state, hash of the current board
@@ -50,7 +50,7 @@ public class WeightedMNKBoard extends MNKBoard {
      * @param K Number of symbols to be aligned (horizontally, vertically, diagonally) for a win
      * @throws IllegalArgumentException If M,N,K are smaller than  1
      */
-    public WeightedMNKBoard(int M, int N, int K) throws IllegalArgumentException {
+    public StatefulBoard(int M, int N, int K) throws IllegalArgumentException {
         super(M, N, K);
 
         final int count = M * N;
@@ -76,7 +76,7 @@ public class WeightedMNKBoard extends MNKBoard {
             }
         }
     }
-    public WeightedMNKBoard(int M, int N, int K, MNKCell[] movesDone ) {
+    public StatefulBoard(int M, int N, int K, MNKCell[] movesDone ) {
         this(M, N, K);
         for (MNKCell move : movesDone) markCell(move.i, move.j);
     }

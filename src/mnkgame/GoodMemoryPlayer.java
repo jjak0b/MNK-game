@@ -18,7 +18,7 @@ public class GoodMemoryPlayer extends AdaptiveMyPlayer {
     @Override
     protected AlphaBetaOutcome alphaBetaPruning_(MNKBoard board, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) throws TimeoutException {
 
-        WeightedMNKBoard tree = (WeightedMNKBoard) board;
+        StatefulBoard tree = (StatefulBoard) board;
         int a = alpha;
         int b = beta;
         BigInteger key = tree.getCurrentState();
