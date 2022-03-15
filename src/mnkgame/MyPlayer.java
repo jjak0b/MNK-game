@@ -15,6 +15,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     boolean isCurrentBoardLeftInValidState;
 
+    public int[] bonusScoreOnMovesLeft;
+
     // threat history stack for each player and for each direction
     protected Stack<Threat>[][] bestThreatHistory;
 
@@ -73,6 +75,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         // New random seed for each game
 
         super.initPlayer(M, N, K, first, timeout_in_secs);
+
+        bonusScoreOnMovesLeft = new int[]{ 0, K, K*K };
 
         corners = new int[][]{ {0, 0}, {0, currentBoard.N-1}, {currentBoard.M-1, 0}, {currentBoard.M-1, currentBoard.N-1} };
         maxDepthSearch = 6;
@@ -359,20 +363,15 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     @Override
     protected AlphaBetaOutcome evaluate(MNKBoard board, int depth, boolean isMyTurn) {
-        return evaluate((StatefulBoard) board, depth, isMyTurn);
-    }
-
-    // TODO: WIP
-    private AlphaBetaOutcome evaluate(StatefulBoard board, int depth, boolean isMyTurn) {
         MNKGameState gameState = board.gameState();
         AlphaBetaOutcome outcome = new AlphaBetaOutcome();
 
         int score = STANDARD_SCORES.get(gameState);
 
         if( score > 0)
-            score -= depth;
+            score -= depth-1;
         else if( score < 0)
-            score += depth;
+            score += depth-1;
 
 /* // keep as reference
         if( gameState == this.STATE_WIN ) {
@@ -400,7 +399,10 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
             int playerMax = 0;
             int opponentMax = 0;
-/*
+            int minPlayerLeft = board.K;
+            int minOpponentLeft = board.K;
+            int[] waysToBeCountered = {1, 1};
+
             for ( int directionType : Utils.DIRECTIONS ) {
                 Stack<Threat> playerHistory = bestThreatHistory[playerIndex][directionType];
                 Stack<Threat> opponentHistory = bestThreatHistory[opponentIndex][directionType];
@@ -408,60 +410,60 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                 Threat bestPlayerThreat = !playerHistory.isEmpty() ? playerHistory.peek() : null;
                 Threat bestOpponentThreat = !opponentHistory.isEmpty() ? opponentHistory.peek() : null;
 
-                if( bestPlayerThreat != null)
-                    playerMax = Math.max(playerMax, bestPlayerThreat.streakCount );
-                if( bestOpponentThreat != null)
-                    opponentMax = Math.max(opponentMax, bestOpponentThreat.streakCount );
+                if( bestPlayerThreat != null) {
+                    playerMax = Math.max(playerMax, bestPlayerThreat.streakCount);
+                    int old = minPlayerLeft;
+                    minPlayerLeft = Math.max(1, currentBoard.K - (bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount));
 
-                if( bestPlayerThreat != null && bestOpponentThreat != null ) {
-                    int compare = bestPlayerThreat.compareTo(bestOpponentThreat);
+                    if( old > minPlayerLeft ) {
 
-                    if( compare > 0 ) {
-                        playerMax = Math.max(playerMax, bestPlayerThreat.streakCount );
+                        // need just one of adjacent
+                        if( bestPlayerThreat.streakCount + bestPlayerThreat.nearAvailableMoves >= board.K )
+                            waysToBeCountered[playerIndex] = 2;
 
-                        score += bestPlayerThreat.streakCount;
-                    }
-                    else if( compare < 0 ) {
-                        opponentMax = Math.max(opponentMax, bestOpponentThreat.streakCount );
-
-                        score += -bestOpponentThreat.streakCount;
-                    }
-                }
-                else if( bestPlayerThreat != null || bestOpponentThreat != null){
-                    if( bestPlayerThreat != null ) {
-                        playerMax = Math.max(playerMax, bestPlayerThreat.streakCount );
-
-                        score += bestPlayerThreat.streakCount;
-                    }
-                    else {
-                        opponentMax = Math.max(opponentMax, bestOpponentThreat.streakCount );
-
-                        score += -bestOpponentThreat.streakCount;
+                        // need a link between 2 streak
+                        else if( bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount + bestPlayerThreat.availableMovesFromOtherClosestStreak >= board.K)
+                            waysToBeCountered[playerIndex] = 1;
                     }
                 }
 
-                int playerLeft = board.K - playerMax;
-                int opponentLeft = board.K - opponentMax;
+                if( bestOpponentThreat != null) {
+                    opponentMax = Math.max(opponentMax, bestOpponentThreat.streakCount);
+                    int old = minOpponentLeft;
+                    minOpponentLeft = Math.max(1, currentBoard.K - (bestOpponentThreat.streakCount + bestOpponentThreat.otherClosestStreakCount));
 
-                if( playerLeft < opponentLeft ) {
-                    score = STANDARD_SCORES.get(STATE_WIN) / (playerLeft+1);
-                }
-                else if( playerLeft > opponentLeft ) {
-                    score = STANDARD_SCORES.get(STATE_LOSE) / (opponentLeft+1);
-                }
-                else {
+                    if( old > minOpponentLeft && minOpponentLeft <= 2) {
 
+                        // need just one of adjacent
+                        if( bestOpponentThreat.streakCount + bestOpponentThreat.nearAvailableMoves >= board.K )
+                            waysToBeCountered[opponentIndex] = bestOpponentThreat.nearAvailableMoves;
+
+                        // need a link between 2 streaks
+                        else if( bestOpponentThreat.streakCount + bestOpponentThreat.otherClosestStreakCount + bestOpponentThreat.availableMovesFromOtherClosestStreak >= board.K)
+                            waysToBeCountered[opponentIndex] = 1;
+                    }
                 }
             }
 
- */
+
+            // division by zero should never happen, because in that case the gamestate won't allow to enter in this branch
+            if( minPlayerLeft < minOpponentLeft ) {
+                score += playerMax;// STANDARD_SCORES.get(STATE_WIN) / (playerLeft);
+                if( minPlayerLeft < bonusScoreOnMovesLeft.length )
+                    score += bonusScoreOnMovesLeft[minPlayerLeft] / waysToBeCountered[playerIndex];
+            }
+            else if( minPlayerLeft > minOpponentLeft ) {
+                score += -opponentMax; //STANDARD_SCORES.get(STATE_LOSE) / (opponentLeft);
+                if( minOpponentLeft < bonusScoreOnMovesLeft.length )
+                    score += -bonusScoreOnMovesLeft[minOpponentLeft] / waysToBeCountered[opponentIndex];
+            }
+
 /*
             Debug.println("Predicting: " + score + "\n" +
                     "streak of " + playerMax + " for player\n" +
                     "streak of " + opponentMax + " for opponent\n"
             );
-
- */
+*/
             // score = score / Math.max(1, depth);
         }
 
@@ -882,7 +884,9 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         if( isCandidate1 && isCandidate2 ) {
             int moveLeftToWin1 = Math.max(0, currentBoard.K - (o1.streakCount + o1.otherClosestStreakCount));
             int moveLeftToWin2 = Math.max(0, currentBoard.K - (o2.streakCount + o2.otherClosestStreakCount));
-            comp = Integer.compareUnsigned(moveLeftToWin1, moveLeftToWin2);
+
+            // lesser the moves left are and more dangerous the threat is
+            comp = Integer.compareUnsigned(moveLeftToWin2, moveLeftToWin1);
         }
         else if( isCandidate1 || isCandidate2 ) {
             if( isCandidate1 ) comp = 1;
