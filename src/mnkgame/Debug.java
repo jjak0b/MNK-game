@@ -17,6 +17,8 @@ public final class Debug {
     // singleton class used by players for debug
     protected static final class Player {
         // DEBUG
+        public static final boolean DEBUG_SHOW_INFO = true;
+        public static final boolean DEBUG_SHOW_DECISION_INFO = true;
         public static final boolean DEBUG_SHOW_BOARD = true;
         public static final boolean DEBUG_SHOW_STATS = true;
         public static final boolean DEBUG_SHOW_STREAKS = false;

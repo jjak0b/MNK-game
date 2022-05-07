@@ -48,7 +48,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     public static final boolean DEBUG_SHOW_USEFUL = Debug.Player.DEBUG_SHOW_USEFUL;
     public static final boolean DEBUG_SHOW_WEIGHTS = Debug.Player.DEBUG_SHOW_WEIGHTS;
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
-
+    public static final boolean DEBUG_SHOW_INFO = Debug.Player.DEBUG_SHOW_INFO;
 
     public MyPlayer() {
 
@@ -86,6 +86,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         initCombo();
         initComparators();
         initCells(M, N, K);
+
+        setInValidState();
     }
 
     protected void initCells(int M, int N, int K) {
@@ -183,7 +185,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         try {
             currentBoard = new StatefulBoard(M, N, K);
             super.currentBoard = currentBoard;
-            isCurrentBoardLeftInValidState = true;
         }
         catch (Throwable e ) {
             Debug.println("Error on init board " + e);
@@ -223,16 +224,15 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         for (int i = 0; i < countToMark; i++) {
             mark(currentBoard, MC[ countMCBeforeInvalid + i ], -1);
         }
-
-        isCurrentBoardLeftInValidState = true;
     }
 
     @Override
     public void restore(MNKCell[] FC, MNKCell[] MC) {
-        restoreTrackingBoard(FC, MC);
-        initCombo();
         initWeights(currentBoard.M, currentBoard.N);
-        isCurrentBoardLeftInValidState = true;
+        initCombo();
+        initCells(currentBoard.M, currentBoard.N, currentBoard.K);
+        restoreTrackingBoard(FC, MC);
+        setInValidState();
     }
 
     @Override
