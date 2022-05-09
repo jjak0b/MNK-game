@@ -24,9 +24,9 @@ public class GoodMemoryPlayer extends IterativeDeepeningPlayer {
         AlphaBetaOutcome outcome;
 
         CachedResult bestOutcome = this.cachedResults.get( key );
-        int weightedValue;
+        int score;
         if (bestOutcome != null && depth >= bestOutcome.depth && key.equals(bestOutcome.boardState) ) {
-            weightedValue = bestOutcome.eval;
+            score = bestOutcome.eval;
 
             switch (bestOutcome.type) {
                 case EXACT:
@@ -35,10 +35,10 @@ public class GoodMemoryPlayer extends IterativeDeepeningPlayer {
                     // returned by the evaluation function
                     return bestOutcome;
                 case LOWER_BOUND:
-                    a = Math.max(a, weightedValue);
+                    a = Math.max(a, score);
                     break;
                 case UPPER_BOUND:
-                    b = Math.min(b, weightedValue);
+                    b = Math.min(b, score);
                     break;
             }
 
@@ -48,7 +48,6 @@ public class GoodMemoryPlayer extends IterativeDeepeningPlayer {
         }
 
         outcome = super._alphaBetaPruning(tree, shouldMaximize, a, b, depth, depthLeft, endTime);
-        weightedValue = outcome.getWeightedValue();
 
         if (System.currentTimeMillis() > endTime) {
             if( DEBUG_SHOW_INFO )
@@ -58,25 +57,18 @@ public class GoodMemoryPlayer extends IterativeDeepeningPlayer {
 
         if( bestOutcome != null && depth >= bestOutcome.depth ) {
             // minimize
-            if (outcome.eval <= a) { // weightedValue <= a
-                // b = outcome.getWeightedValue();
+            if (outcome.eval <= a) {
                 cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.UPPER_BOUND, key));
             }
             // maximize
-            else if (outcome.eval >= b) { // weightedValue >= b
-                // a = outcome.getWeightedValue();
+            else if (outcome.eval >= b) {
                 cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.LOWER_BOUND, key));
-            } else {
+            }
+            else {
                 cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.EXACT, key));
             }
         }
 
-/*
-        if( depth == 0 ) {
-            cachedResults.remove( key );
-        }
-
- */
         return outcome;
     }
 
