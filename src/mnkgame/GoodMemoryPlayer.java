@@ -4,19 +4,18 @@ import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 
-public class GoodMemoryPlayer extends AdaptiveMyPlayer {
+public class GoodMemoryPlayer extends IterativeDeepeningPlayer {
 
     private HashMap<BigInteger, CachedResult> cachedResults;
 
     @Override
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.initPlayer(M, N, K, first, timeout_in_secs);
-        cachedResults = new HashMap<>((int) Math.ceil((M*N) / 0.75));
-        estimatedPercentOfTimeRequiredToExit = 2f/100f;
+        cachedResults = new HashMap<>((int) Math.ceil((M*N*K) / 0.75));
     }
 
     @Override
-    protected AlphaBetaOutcome alphaBetaPruning_(MNKBoard board, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) throws TimeoutException {
+    protected AlphaBetaOutcome _alphaBetaPruning(MNKBoard board, boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) throws TimeoutException {
 
         StatefulBoard tree = (StatefulBoard) board;
         int a = alpha;
@@ -26,8 +25,8 @@ public class GoodMemoryPlayer extends AdaptiveMyPlayer {
 
         CachedResult bestOutcome = this.cachedResults.get( key );
         int weightedValue;
-        if (bestOutcome != null && depth >= bestOutcome.depth ) {
-            weightedValue = bestOutcome.getWeightedValue();
+        if (bestOutcome != null && depth >= bestOutcome.depth && key.equals(bestOutcome.boardState) ) {
+            weightedValue = bestOutcome.eval;
 
             switch (bestOutcome.type) {
                 case EXACT:
@@ -48,27 +47,36 @@ public class GoodMemoryPlayer extends AdaptiveMyPlayer {
             }
         }
 
-        outcome = super.alphaBetaPruning_(tree, shouldMaximize, a, b, depth, depthLeft, endTime);
+        outcome = super._alphaBetaPruning(tree, shouldMaximize, a, b, depth, depthLeft, endTime);
         weightedValue = outcome.getWeightedValue();
 
-        // minimize
-        if ( (bestOutcome == null || outcome.compareTo(bestOutcome) < 0) ) { // weightedValue <= a
-            // b = outcome.getWeightedValue();
-            cachedResults.put( key, new CachedResult( outcome, CachedResult.ValueType.UPPER_BOUND ) );
-        }
-        // maximize
-        else if ((bestOutcome == null || outcome.compareTo(bestOutcome) > 0) ) { // weightedValue >= b
-            // a = outcome.getWeightedValue();
-            cachedResults.put( key, new CachedResult( outcome, CachedResult.ValueType.LOWER_BOUND ) );
-        }
-        else {
-            cachedResults.put( key, new CachedResult( outcome, CachedResult.ValueType.EXACT ) );
+        if (System.currentTimeMillis() > endTime) {
+            if( DEBUG_SHOW_INFO )
+                Debug.println("Exiting quickly");
+            throw new TimeoutException("Exiting quickly");
         }
 
+        if( bestOutcome != null && depth >= bestOutcome.depth ) {
+            // minimize
+            if (outcome.eval <= a) { // weightedValue <= a
+                // b = outcome.getWeightedValue();
+                cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.UPPER_BOUND, key));
+            }
+            // maximize
+            else if (outcome.eval >= b) { // weightedValue >= b
+                // a = outcome.getWeightedValue();
+                cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.LOWER_BOUND, key));
+            } else {
+                cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.EXACT, key));
+            }
+        }
 
+/*
         if( depth == 0 ) {
             cachedResults.remove( key );
         }
+
+ */
         return outcome;
     }
 
@@ -86,16 +94,20 @@ public class GoodMemoryPlayer extends AdaptiveMyPlayer {
         }
 
         public ValueType type;
+        public BigInteger boardState;
 
-        CachedResult( AlphaBetaOutcome o, ValueType type ) {
+        CachedResult( AlphaBetaOutcome o, ValueType type, BigInteger boardState ) {
             super(o);
             this.type = type;
+            this.boardState = boardState;
         }
 
-        CachedResult( float value, ValueType type, int depth ) {
+        CachedResult( int value, ValueType type, int depth, BigInteger boardState ) {
             super();
             this.type = type;
             this.depth = depth;
+            this.eval = value;
+            this.boardState = boardState;
         }
     }
 }
