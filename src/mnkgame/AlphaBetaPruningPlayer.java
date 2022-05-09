@@ -26,6 +26,7 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     protected Stack<AlphaBetaOutcome> bestOutcomes;
 
     // DEBUG
+    public static final boolean DEBUG_SHOW_INFO = Debug.Player.DEBUG_SHOW_INFO;
     public static final boolean DEBUG_SHOW_BOARD = Debug.Player.DEBUG_SHOW_BOARD;
     public static final boolean DEBUG_SHOW_STATS = Debug.Player.DEBUG_SHOW_STATS;
     public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = Debug.Player.DEBUG_SHOW_MOVES_RESULT_ON_ROOT;
@@ -221,7 +222,8 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
                     bestOutcome.move = move;
 
                 if (System.currentTimeMillis() > endTime) {
-                    Debug.println("Exiting quickly");
+                    if( DEBUG_SHOW_INFO )
+                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
                     break;
                 }
 

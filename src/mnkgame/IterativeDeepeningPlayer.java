@@ -65,7 +65,8 @@ public class IterativeDeepeningPlayer extends MyPlayer {
                     bestOutcome.move = move;
 
                 if (System.currentTimeMillis() > endTime) {
-                    Debug.println("Exiting quickly");
+                    if( DEBUG_SHOW_INFO )
+                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
                     throw new TimeoutException("Exiting quickly");
                 }
 

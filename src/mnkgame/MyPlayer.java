@@ -48,7 +48,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     public static final boolean DEBUG_SHOW_USEFUL = Debug.Player.DEBUG_SHOW_USEFUL;
     public static final boolean DEBUG_SHOW_WEIGHTS = Debug.Player.DEBUG_SHOW_WEIGHTS;
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
-    public static final boolean DEBUG_SHOW_INFO = Debug.Player.DEBUG_SHOW_INFO;
 
     public MyPlayer() {
 
