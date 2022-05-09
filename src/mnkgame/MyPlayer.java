@@ -350,10 +350,19 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         if( DEBUG_SHOW_STATS )
             printStats(outcome, elapsed, timeLeft);
 
+        if( Debug.DEBUG_ENABLED ) {
+            if(!isStateValid()){
+                restore(FC, MC);
+            }
+        }
+
         mark(currentBoard, outcome.move, 0);
 
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
+        if( Debug.DEBUG_ENABLED && currentBoard.gameState() != MNKGameState.OPEN ){
+            Debug.println( "Final board:\n" + boardToString() );
+        }
 
         round++;
 
@@ -1036,18 +1045,14 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
             }
         }
 
-        if( DEBUG_SHOW_BOARD || DEBUG_SHOW_WEIGHTS ) {
-            for (int i = 0; i < currentBoard.B.length; i++) {
-                if( DEBUG_SHOW_BOARD ) {
-                    s += Utils.toString(currentBoard.B[i]) + "\t\t\t";
+        for (int i = 0; i < currentBoard.B.length; i++) {
+            s += Utils.toString(currentBoard.B[i]) + "\t\t\t";
+            if( DEBUG_SHOW_WEIGHTS) {
+                for (int p = 0; p < 2; p++) {
+                    s += boardToString(currentBoard.B[i], weights[p][i], currentBoard.K) + "\t\t\t";
                 }
-                if( DEBUG_SHOW_WEIGHTS) {
-                    for (int p = 0; p < 2; p++) {
-                        s += boardToString(currentBoard.B[i], weights[p][i], currentBoard.K) + "\t\t\t";
-                    }
-                }
-                s += "\n";
             }
+            s += "\n";
         }
         return s;
     }

@@ -238,7 +238,7 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
 
                 if (System.currentTimeMillis() > endTime) {
                     if( DEBUG_SHOW_INFO )
-                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
+                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly" + Utils.ConsoleColors.RESET );
                     break;
                 }
 

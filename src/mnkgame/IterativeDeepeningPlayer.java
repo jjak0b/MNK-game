@@ -131,12 +131,20 @@ public class IterativeDeepeningPlayer extends MyPlayer {
                 this.maxDepthSearch
         );
 
+        if( Debug.DEBUG_ENABLED ) {
+            if(!isStateValid()){
+                restore(FC, MC);
+            }
+        }
+
         if( isStateValid() )
             mark(currentBoard, outcome.move, 0);
 
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
-
+        if( Debug.DEBUG_ENABLED && currentBoard.gameState() != MNKGameState.OPEN ){
+            Debug.println( "Final board:\n" + boardToString() );
+        }
         round++;
 
         return outcome.move;
@@ -228,6 +236,15 @@ public class IterativeDeepeningPlayer extends MyPlayer {
         for (int i = 0; i < MC.length; i++) {
             mark(currentBoard, MC[ i ], -1);
         }
+    }
+
+    @Override
+    public void restore(MNKCell[] FC, MNKCell[] MC) {
+        initWeights(currentBoard.M, currentBoard.N);
+        initCombo();
+        initCells(currentBoard.M, currentBoard.N, currentBoard.K);
+        restoreTrackingBoard(FC, MC);
+        setInValidState();
     }
 
     /**
