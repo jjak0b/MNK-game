@@ -48,6 +48,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     public static final boolean DEBUG_SHOW_USEFUL = Debug.Player.DEBUG_SHOW_USEFUL;
     public static final boolean DEBUG_SHOW_WEIGHTS = Debug.Player.DEBUG_SHOW_WEIGHTS;
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
+    public static final boolean DEBUG_START_FIXED_MOVE = Debug.Player.DEBUG_START_FIXED_MOVE;
 
     public MyPlayer() {
 
@@ -255,10 +256,19 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     }
 */
     protected MNKCell strategyAsFirst(MNKCell[] FC, MNKCell[] MC) {
-//      return FC[rand.nextInt(FC.length)]; // random
-        int[] coords = corners[rand.nextInt( corners.length ) ];
-        Debug.println( "First Move: Move to a corner");
-        coords = corners[ 1 ]; // constant for debug
+        int[] coords = null;
+        if( DEBUG_START_FIXED_MOVE ) {
+            coords = corners[ 1 ]; // constant for debug
+            if( DEBUG_SHOW_INFO )
+                Debug.println( "First Move: Move to a fixed corner");
+        }
+        else {
+            if( DEBUG_SHOW_INFO )
+                Debug.println( "First Move: Move to a corner");
+            //      return FC[rand.nextInt(FC.length)]; // random
+            coords = corners[rand.nextInt( corners.length ) ];
+        }
+
         return new MNKCell( coords[0], coords[1] );
     }
 
