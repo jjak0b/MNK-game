@@ -17,6 +17,10 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     protected int round;
 
     // stats
+    protected float wTotalWorkTime;
+    protected float wTotalWeights;
+    protected float wAverageWorkTime;
+
     protected long totalWorkTime;
     protected long maxWorkTime;
     protected long minWorkTime;
@@ -125,7 +129,14 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     }
 
     protected void printStats(final AlphaBetaOutcome outcome, long elapsed, long timeLeft ) {
+        float markedCount = round+1;
+        float total = currentBoard.M * currentBoard.N;
+        float weight = markedCount / total;
+
         totalWorkTime += elapsed;
+        wTotalWorkTime += (elapsed/1000.0) * weight;
+        wTotalWeights += weight;
+        wAverageWorkTime = wTotalWorkTime / wTotalWeights;
         averageWorkTime = totalWorkTime / (round+1);
         maxWorkTime = Math.max(maxWorkTime, elapsed);
         minWorkTime = Math.min(minWorkTime, elapsed);
@@ -133,6 +144,7 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
         Debug.println( "Euristic: " +  (outcome != null ? outcome.eval : null) + "\t" +
                 "Decision made in " + (elapsed/1000.0) + "\t" +
                 "Left Time: " + (timeLeft/1000.0) + "\t" +
+                "Weighted Average Time: " + (wAverageWorkTime) + "\t" +
                 "Average Time: " + (averageWorkTime/1000.0) + "\t" +
                 "Total Time: " + (totalWorkTime/1000.0) + "\t" +
                 "Max time: " + (maxWorkTime/1000.0) + "\t" +
