@@ -71,6 +71,9 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
         round = 0;
 
         // stats
+        wTotalWorkTime = 0f;
+        wTotalWeights = 0f;
+        wAverageWorkTime = 0f;
         totalWorkTime = 0;
         averageWorkTime = 0;
         minWorkTime = Long.MAX_VALUE;
