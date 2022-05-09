@@ -76,7 +76,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         super.initPlayer(M, N, K, first, timeout_in_secs);
 
-        bonusScoreOnMovesLeft = new int[]{ 0, K, K*K };
+        bonusScoreOnMovesLeft = new int[]{ 0, K*K*K, K*K };
 
         corners = new int[][]{ {0, 0}, {0, currentBoard.N-1}, {currentBoard.M-1, 0}, {currentBoard.M-1, currentBoard.N-1} };
         maxDepthSearch = 6;
