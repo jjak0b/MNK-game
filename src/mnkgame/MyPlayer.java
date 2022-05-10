@@ -392,10 +392,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         int score = STANDARD_SCORES.get(gameState);
 
-        if( score > 0)
-            score -= depth-1;
-        else if( score < 0)
-            score += depth-1;
 
 /* // keep as reference
         if( gameState == this.STATE_WIN ) {
@@ -418,68 +414,50 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
             // newStimeScore = scoreWeight * oldScore  + ( 1 - scoreWeight ) * oldStimeScore
 
-            int playerIndex = Utils.getPlayerIndex(MY_MARK_STATE);
+            // int playerIndex = Utils.getPlayerIndex(MY_MARK_STATE);
             int opponentIndex = 1-playerIndex;
 
-            int playerMax = 0;
-            int opponentMax = 0;
-            int minPlayerLeft = board.K;
-            int minOpponentLeft = board.K;
-            int[] waysToBeCountered = {1, 1};
+            final int[] maxPlayerStreak = {0, 0};
+            final int[] minPlayerMoveLeft = {board.K, board.K};
+            final int[] waysToBeCountered = {1, 1};
 
-            for ( int directionType : Utils.DIRECTIONS ) {
-                Stack<Threat> playerHistory = bestThreatHistory[playerIndex][directionType];
-                Stack<Threat> opponentHistory = bestThreatHistory[opponentIndex][directionType];
+            for (int indexPlayer = 0; indexPlayer < 2; indexPlayer++) {
+                for ( int directionType : Utils.DIRECTIONS ) {
 
-                Threat bestPlayerThreat = !playerHistory.isEmpty() ? playerHistory.peek() : null;
-                Threat bestOpponentThreat = !opponentHistory.isEmpty() ? opponentHistory.peek() : null;
+                    Stack<Threat> playerHistory = bestThreatHistory[indexPlayer][directionType];
+                    Threat bestPlayerThreat = !playerHistory.isEmpty() ? playerHistory.peek() : null;
 
-                if( bestPlayerThreat != null) {
-                    playerMax = Math.max(playerMax, bestPlayerThreat.streakCount);
-                    int old = minPlayerLeft;
-                    minPlayerLeft = Math.max(1, currentBoard.K - (bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount));
+                    if( bestPlayerThreat != null) {
+                        maxPlayerStreak[indexPlayer] = Math.max(maxPlayerStreak[indexPlayer], bestPlayerThreat.streakCount);
+                        int old = minPlayerMoveLeft[indexPlayer];
+                        minPlayerMoveLeft[indexPlayer] = Math.min(old, Math.max(1, currentBoard.K - (bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount)));
 
-                    if( old > minPlayerLeft ) {
+                        // apply these modifiers only on closest streak to win
+                        if( old > minPlayerMoveLeft[indexPlayer] ) {
 
-                        // need just one of adjacent
-                        if( bestPlayerThreat.streakCount + bestPlayerThreat.nearAvailableMoves >= board.K )
-                            waysToBeCountered[playerIndex] = 2;
+                            // need just one of adjacent
+                            if( bestPlayerThreat.streakCount + bestPlayerThreat.nearAvailableMoves >= board.K )
+                                waysToBeCountered[indexPlayer] = bestPlayerThreat.nearAvailableMoves;
 
-                        // need a link between 2 streak
-                        else if( bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount + bestPlayerThreat.availableMovesFromOtherClosestStreak >= board.K)
-                            waysToBeCountered[playerIndex] = 1;
-                    }
-                }
-
-                if( bestOpponentThreat != null) {
-                    opponentMax = Math.max(opponentMax, bestOpponentThreat.streakCount);
-                    int old = minOpponentLeft;
-                    minOpponentLeft = Math.max(1, currentBoard.K - (bestOpponentThreat.streakCount + bestOpponentThreat.otherClosestStreakCount));
-
-                    if( old > minOpponentLeft && minOpponentLeft <= 2) {
-
-                        // need just one of adjacent
-                        if( bestOpponentThreat.streakCount + bestOpponentThreat.nearAvailableMoves >= board.K )
-                            waysToBeCountered[opponentIndex] = bestOpponentThreat.nearAvailableMoves;
-
-                        // need a link between 2 streaks
-                        else if( bestOpponentThreat.streakCount + bestOpponentThreat.otherClosestStreakCount + bestOpponentThreat.availableMovesFromOtherClosestStreak >= board.K)
-                            waysToBeCountered[opponentIndex] = 1;
+                            // need a link between 2 streak
+                            else if( bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount + bestPlayerThreat.availableMovesFromOtherClosestStreak >= board.K)
+                                waysToBeCountered[indexPlayer] = 1;
+                        }
                     }
                 }
             }
 
 
             // division by zero should never happen, because in that case the gamestate won't allow to enter in this branch
-            if( minPlayerLeft < minOpponentLeft ) {
-                score += playerMax;// STANDARD_SCORES.get(STATE_WIN) / (playerLeft);
-                if( minPlayerLeft < bonusScoreOnMovesLeft.length )
-                    score += bonusScoreOnMovesLeft[minPlayerLeft] / waysToBeCountered[playerIndex];
+            if(minPlayerMoveLeft[playerIndex] < minPlayerMoveLeft[opponentIndex]) {
+                score += maxPlayerStreak[playerIndex];// STANDARD_SCORES.get(STATE_WIN) / (playerLeft);
+                if( minPlayerMoveLeft[playerIndex] < bonusScoreOnMovesLeft.length )
+                    score += bonusScoreOnMovesLeft[minPlayerMoveLeft[playerIndex]] / waysToBeCountered[playerIndex];
             }
-            else if( minPlayerLeft > minOpponentLeft ) {
-                score += -opponentMax; //STANDARD_SCORES.get(STATE_LOSE) / (opponentLeft);
-                if( minOpponentLeft < bonusScoreOnMovesLeft.length )
-                    score += -bonusScoreOnMovesLeft[minOpponentLeft] / waysToBeCountered[opponentIndex];
+            else if( minPlayerMoveLeft[playerIndex] > minPlayerMoveLeft[opponentIndex] ) {
+                score += -maxPlayerStreak[opponentIndex]; //STANDARD_SCORES.get(STATE_LOSE) / (opponentLeft);
+                if( minPlayerMoveLeft[opponentIndex] < bonusScoreOnMovesLeft.length )
+                    score += -bonusScoreOnMovesLeft[minPlayerMoveLeft[opponentIndex]] / waysToBeCountered[opponentIndex];
             }
 
 /*
@@ -490,6 +468,11 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 */
             // score = score / Math.max(1, depth);
         }
+
+        if( score >= depth)
+            score -= depth-1;
+        else if( score <= -depth)
+            score += depth-1;
 
         outcome.eval = score;
         outcome.depth = depth;
