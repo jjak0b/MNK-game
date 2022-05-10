@@ -50,6 +50,55 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
     public static final boolean DEBUG_START_FIXED_MOVE = Debug.Player.DEBUG_START_FIXED_MOVE;
 
+    public class PlayerMoveComparator implements Comparator<Integer> {
+        private final int indexPlayer;
+        private final int indexOpponent;
+        private Utils.Weight[] wMax;
+
+        public PlayerMoveComparator(int playerIndex) {
+            this.indexPlayer = playerIndex;
+            this.indexOpponent = 1 - playerIndex;
+            this.wMax = new Utils.Weight[2];
+        }
+
+        @Override
+        public int compare(Integer id1, Integer id2) {
+            final int[] p1 = currentBoard.getMatrixIndexesFromArrayIndex(id1);
+            final int[] p2 = currentBoard.getMatrixIndexesFromArrayIndex(id2);
+            int diff = 0;
+
+            for (int j = 0; j < 2; j++) {
+                wMax[j] = null;
+                int[] index;
+                if( j == 0 ) index = p1;
+                else index = p2;
+
+                for (int d = 0; d < Utils.DIRECTIONS.length; d++) {
+                    int directionType = Utils.DIRECTIONS[d];
+                    Utils.Weight w;
+
+                    Utils.Weight wP = usefulness[indexPlayer][directionType][ index[0] ][ index[1] ];
+                    Utils.Weight wO = usefulness[indexOpponent][directionType][ index[0] ][ index[1] ];
+
+                    int comp = wP.compareTo(wO);
+
+                    if( comp >= 0) w = wP;
+                    else w = wO;
+
+                    if( wMax[j] == null || w.compareTo(wMax[j]) > 0) wMax[j] = w;
+                }
+            }
+
+            diff = wMax[1].compareTo(wMax[0]);
+
+            // make it stable
+            if (diff == 0) {
+                diff = Integer.compare(id2, id1);
+            }
+            return diff;
+        }
+    }
+
     public MyPlayer() {
 
     }
@@ -129,53 +178,10 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     }
 
     protected void initComparators() {
-        freeCellsIdsComparators = new Comparator[2];
-        for (int i = 0; i < 2; i++) {
-            int index = i;
+        freeCellsIdsComparators = new PlayerMoveComparator[2];
+        for (int indexPlayer = 0; indexPlayer < 2; indexPlayer++) {
             // heatmap comparators for descending order
-            freeCellsIdsComparators[i] = new Comparator<>() {
-                private final int indexPlayer = index;
-                private final int indexOpponent = 1 - index;
-
-                Utils.Weight[] wMax = new Utils.Weight[2];
-
-                @Override
-                public int compare(Integer id1, Integer id2) {
-                    final int[] p1 = currentBoard.getMatrixIndexesFromArrayIndex(id1);
-                    final int[] p2 = currentBoard.getMatrixIndexesFromArrayIndex(id2);
-                    int diff = 0;
-
-                    for (int j = 0; j < 2; j++) {
-                        wMax[j] = null;
-                        int[] index;
-                        if( j == 0 ) index = p1;
-                        else index = p2;
-
-                        for (int d = 0; d < Utils.DIRECTIONS.length; d++) {
-                            int directionType = Utils.DIRECTIONS[d];
-                            Utils.Weight w;
-
-                            Utils.Weight wP = usefulness[indexPlayer][directionType][ index[0] ][ index[1] ];
-                            Utils.Weight wO = usefulness[indexOpponent][directionType][ index[0] ][ index[1] ];
-
-                            int comp = wP.compareTo(wO);
-
-                            if( comp >= 0) w = wP;
-                            else w = wO;
-
-                            if( wMax[j] == null || w.compareTo(wMax[j]) > 0) wMax[j] = w;
-                        }
-                    }
-
-                    diff = wMax[1].compareTo(wMax[0]);
-
-                    // make it stable
-                    if (diff == 0) {
-                        diff = Integer.compare(id2, id1);
-                    }
-                    return diff;
-                }
-            };
+            freeCellsIdsComparators[indexPlayer] = new PlayerMoveComparator(indexPlayer);
         }
     }
 
