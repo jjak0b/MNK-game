@@ -99,6 +99,35 @@ public class Utils {
         return Arrays.toString(cells);
     }
 
+    /**
+     * Format columns of each row to be aligned
+     * @param rows
+     * @return the stringified table
+     */
+    public static String tableToString(Iterable<String[]> rows ) {
+        StringBuilder table = new StringBuilder();
+        final int charsPerTab = 4;
+        int[] maxCharCountPerColumn = null;
+        for (String[] row : rows) {
+            if( maxCharCountPerColumn == null )
+                maxCharCountPerColumn = new int[row.length];
+            for (int j = 0; j < row.length; j++) {
+                maxCharCountPerColumn[j] = Math.max(maxCharCountPerColumn[j], row[j].length());
+            }
+        }
+
+        for (String[] row : rows) {
+            for (int j = 0; j < row.length; j++) {
+                table.append(row[j]);
+                int tabCount = 1 + (maxCharCountPerColumn[j] / charsPerTab) - (row[j].length() / charsPerTab);
+                table.append("\t".repeat(tabCount));
+            }
+            table.append("\n");
+        }
+
+        return table.toString();
+    }
+
     public static class ConsoleColors {
         // Reset
         public static final String RESET = "\033[0m";  // Text Reset
