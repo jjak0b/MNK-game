@@ -131,7 +131,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         maxDepthSearch = 6;
         estimatedPercentOfTimeRequiredToExit = 5f/100f;
 
-        initWeights(M, N);
+        initWeights(M, N, K);
         initCombo();
         initComparators();
         initCells(M, N, K);
@@ -152,10 +152,13 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
             cellsIdsPositions[i] = i;
         }
         freeCellsCount = cellsIds.length;
+
+        // this isn't required since cell are sorted automatically when are requested for candidates
+        // sortDirtyWeights(playerIndex);
     }
 
     // Sets to free all board cells
-    protected void initWeights(int M, int N) {
+    protected void initWeights(int M, int N, int K) {
         weights = new Utils.Weight[2][M][N];
         usefulness = new Utils.Weight[2][Utils.DIRECTIONS.length][M][N];
         streakWeights = new Utils.Weight[2][Utils.DIRECTIONS.length][M][N];
@@ -172,6 +175,19 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                         usefulness[p][directionType][i][j] = new Utils.Weight(c, 0);
                         streakWeights[p][directionType][i][j] = new Utils.Weight(c, 0);
                     }
+                }
+            }
+        }
+
+        // mark with an high useless score the diagonals on corners that can't be used for streaks
+        final int totallyUselessValue = -1; //Integer.MIN_VALUE / 2;
+        for (int i = 0; i < K-1; i++) {
+            for (int j = 0; j < (K-1)-i; j++) {
+                for (int p = 0; p < 2; p++) {
+                    setUsefulness(p, Utils.DIRECTION_TYPE_OBLIQUE_LR, i, j, totallyUselessValue );
+                    setUsefulness(p, Utils.DIRECTION_TYPE_OBLIQUE_LR, (M-1)-i, (N-1)-j, totallyUselessValue );
+                    setUsefulness(p, Utils.DIRECTION_TYPE_OBLIQUE_RL, (M-1)-i, j, totallyUselessValue );
+                    setUsefulness(p, Utils.DIRECTION_TYPE_OBLIQUE_RL, i, (N-1)-j, totallyUselessValue );
                 }
             }
         }
@@ -234,7 +250,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     @Override
     public void restore(MNKCell[] FC, MNKCell[] MC) {
-        initWeights(currentBoard.M, currentBoard.N);
+        initWeights(currentBoard.M, currentBoard.N, currentBoard.K);
         initCombo();
         initCells(currentBoard.M, currentBoard.N, currentBoard.K);
         restoreTrackingBoard(FC, MC);
@@ -913,7 +929,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     @Override
     public MNKCell[] getCellCandidates(MNKBoard board) {
-        sortDirtyWeights();
+        sortDirtyWeights(currentBoard.currentPlayer());
         MNKCell[] buffer = new MNKCell[freeCellsCount];
         for (int i = 0; i < freeCellsCount; i++) {
             int[] position = currentBoard.getMatrixIndexesFromArrayIndex(cellsIds[i]);
@@ -959,11 +975,11 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     /**
      * Sort cellsIds in O(n*log n) on worst case
      */
-    private void sortDirtyWeights() {
+    private void sortDirtyWeights(int playerIndex) {
         // Using sorting algorithm optimized for almost sorted arrays
         // Utils.Sort.insertionSort(cellsIds, 0, freeCellsCount-1, freeCellsIdsComparators[currentBoard.currentPlayer()]);
         // Using Tim sort since very fast in this case
-        Arrays.sort(cellsIds, 0, freeCellsCount, freeCellsIdsComparators[currentBoard.currentPlayer()]);
+        Arrays.sort(cellsIds, 0, freeCellsCount, freeCellsIdsComparators[playerIndex]);
 
         for (int i = 0; i < freeCellsCount; i++) {
             cellsIdsPositions[cellsIds[i]] = i;

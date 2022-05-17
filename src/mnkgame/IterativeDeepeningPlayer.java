@@ -240,7 +240,7 @@ public class IterativeDeepeningPlayer extends MyPlayer {
 
     @Override
     public void restore(MNKCell[] FC, MNKCell[] MC) {
-        initWeights(currentBoard.M, currentBoard.N);
+        initWeights(currentBoard.M, currentBoard.N, currentBoard.K);
         initCombo();
         initCells(currentBoard.M, currentBoard.N, currentBoard.K);
         restoreTrackingBoard(FC, MC);
