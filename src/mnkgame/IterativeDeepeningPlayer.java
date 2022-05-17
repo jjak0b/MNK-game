@@ -82,7 +82,6 @@ public class IterativeDeepeningPlayer extends MyPlayer {
 
     @Override
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
-        MNKCell choice = null;
         AlphaBetaOutcome outcome = null;
         long elapsed = 0;
         long startTime = System.currentTimeMillis();
@@ -97,6 +96,7 @@ public class IterativeDeepeningPlayer extends MyPlayer {
             setInValidState();
         }
         else {
+            MNKCell choice = null;
             if (MC.length > 0) {
                 choice = MC[MC.length - 1]; // Save the last move in the local MNKBoard
                 mark(currentBoard, choice, 0);
@@ -109,7 +109,7 @@ public class IterativeDeepeningPlayer extends MyPlayer {
 
         switch ( MC.length ){
             case 0: // move as first
-                choice = strategyAsFirst(FC, MC);
+                outcome = strategyAsFirst(FC, MC, endTime);
                 break;
 //            case 1: // move as second
 //                choice = strategyAsSecond(FC, MC);
@@ -123,7 +123,6 @@ public class IterativeDeepeningPlayer extends MyPlayer {
                         this.maxDepthSearch,
                         endTime
                 );
-                choice = outcome.move;
                 break;
         }
 
@@ -141,7 +140,7 @@ public class IterativeDeepeningPlayer extends MyPlayer {
         }
 
         if( isStateValid() )
-            mark(currentBoard, choice, 0);
+            mark(currentBoard, outcome.move, 0);
 
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
@@ -149,7 +148,29 @@ public class IterativeDeepeningPlayer extends MyPlayer {
             Debug.println( "Final board:\n" + boardToString() );
         }
         round++;
-        return choice;
+        return outcome.move;
+    }
+
+    @Override
+    protected AlphaBetaOutcome strategyAsFirst(MNKCell[] FC, MNKCell[] MC, long endTime) {
+        if( DEBUG_START_FIXED_MOVE ) {
+            int[] coords = corners[ 1 ]; // constant for debug
+            if( DEBUG_SHOW_INFO )
+                Debug.println( "First Move: Move to a fixed corner");
+            AlphaBetaOutcome outcome = new AlphaBetaOutcome();
+            outcome.move = new MNKCell( coords[0], coords[1] ); outcome.depth = 0; outcome.eval = 0;
+            return outcome;
+        }
+        else {
+            return iterativeDeepening(
+                    currentBoard,
+                    true,
+                    STANDARD_SCORES.get(STATE_LOSE),
+                    STANDARD_SCORES.get(STATE_WIN),
+                    this.maxDepthSearch,
+                    endTime
+            );
+        }
     }
 
     public AlphaBetaOutcome iterativeDeepening(MNKBoard tree, boolean shouldMaximize, int a, int b, int maxDepthSearch, long endTime ) {

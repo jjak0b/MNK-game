@@ -30,7 +30,7 @@ public class AdaptiveMyPlayer extends MyPlayer {
 
         switch ( MC.length ){
             case 0: // move as first
-                choice = strategyAsFirst(FC, MC);
+                choice = strategyAsFirst(FC, MC, workTime).move;
 //                 choice = FC[rand.nextInt(FC.length)]; // random
 //                 choice = new MNKCell(3,0);
                 break;

@@ -34,7 +34,8 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     // cellsIds[ i ] = id
     protected Integer[] cellsIds;
-
+    // flag that indicates free cells buffer must be sorted
+    protected boolean shouldSortCellsIds;
     // cellsIdsPositions[ cellID ] = position = i of cellID = cellsIds[ i ]
     protected Integer[] cellsIdsPositions;
     protected int freeCellsCount;
@@ -137,6 +138,51 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         initCells(M, N, K);
 
         setInValidState();
+
+        if( first )
+            initOnFirst(M, N, K);
+    }
+
+    /**
+     * Callback called on #initPlayer if start as first player.
+     * This implementation re-arrange the candidates of root tree ( depth 0 ) to analyze first center and on corners cells
+     * @param M
+     * @param N
+     * @param K
+     */
+    protected void initOnFirst(int M, int N, int K) {
+        if( DEBUG_START_FIXED_MOVE ) return;
+
+        final int[][] prevValues = new int[Utils.DIRECTIONS.length][5];
+        for( int d = 0; d < Utils.DIRECTIONS.length; d++ ) {
+            prevValues[d][0] = 2;
+            for (int j = 1; j < 5; j++) prevValues[d][j] = 1;
+        }
+        int c, temp;
+        // 2 scans:
+        // first: assign new weights and sort cells with new weights
+        // second: restore weights without re-sort
+        for (int i = 0; i < 2; i++) {
+            Utils.Weight[][] usefulWeights;
+            for( int directionType : Utils.DIRECTIONS ) {
+                c = 0;
+                usefulWeights = getUsefulnessWeights(playerIndex, directionType);
+                temp = usefulWeights[M / 2][ N / 2].value;
+                setUsefulness(playerIndex, directionType, M / 2, N / 2, prevValues[directionType][c]);
+                prevValues[directionType][c] = temp;
+                c++;
+                for (int[] corner : corners) {
+                    temp = usefulWeights[corner[0]][corner[1]].value;
+                    setUsefulness(playerIndex, directionType, corner[0], corner[1], prevValues[directionType][c]);
+                    prevValues[directionType][c] = temp;
+                    c++;
+                }
+            }
+            if( i == 0 )
+                sortDirtyWeights(playerIndex);
+        }
+        // This will prevent to re-sort free cells candidates
+        shouldSortCellsIds = false;
     }
 
     protected void initCells(int M, int N, int K) {
@@ -152,7 +198,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
             cellsIdsPositions[i] = i;
         }
         freeCellsCount = cellsIds.length;
-
+        shouldSortCellsIds = false;
         // this isn't required since cell are sorted automatically when are requested for candidates
         // sortDirtyWeights(playerIndex);
     }
@@ -277,21 +323,26 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         return comboMap[playerIndex];
     }
 */
-    protected MNKCell strategyAsFirst(MNKCell[] FC, MNKCell[] MC) {
-        int[] coords = null;
+    protected AlphaBetaOutcome strategyAsFirst(MNKCell[] FC, MNKCell[] MC, long endTime) {
         if( DEBUG_START_FIXED_MOVE ) {
-            coords = corners[ 1 ]; // constant for debug
+            int[] coords = corners[ 1 ]; // constant for debug
             if( DEBUG_SHOW_INFO )
                 Debug.println( "First Move: Move to a fixed corner");
+            AlphaBetaOutcome outcome = new AlphaBetaOutcome();
+            outcome.move = new MNKCell( coords[0], coords[1] ); outcome.depth = 0; outcome.eval = 0;
+            return outcome;
         }
         else {
-            if( DEBUG_SHOW_INFO )
-                Debug.println( "First Move: Move to a corner");
-            //      return FC[rand.nextInt(FC.length)]; // random
-            coords = corners[rand.nextInt( corners.length ) ];
+            return alphaBetaPruning(
+                    currentBoard,
+                    true,
+                    STANDARD_SCORES.get(STATE_LOSE),
+                    STANDARD_SCORES.get(STATE_WIN),
+                    0,
+                    maxDepthSearch,
+                    endTime
+            );
         }
-
-        return new MNKCell( coords[0], coords[1] );
     }
 
     protected MNKCell strategyAsSecond(MNKCell[] FC, MNKCell[] MC) {
@@ -319,7 +370,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     @Override
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
         AlphaBetaOutcome outcome = null;
-        MNKCell choice = null;
         long elapsed = 0;
         long startTime = System.currentTimeMillis();
         long endTime = startTime + (long) ( timeout * (99.0/100.0));
@@ -333,6 +383,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
             setInValidState();
         }
         else {
+            MNKCell choice = null;
             if (MC.length > 0) {
                 choice = MC[MC.length - 1]; // Save the last move in the local MNKBoard
                 mark(currentBoard, choice, 0);
@@ -353,7 +404,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         invalidateState();
         switch ( MC.length ){
             case 0: // move as first
-                choice = strategyAsFirst(FC, MC);
+                outcome = strategyAsFirst(FC, MC, workTime);
                 break;
 //            case 1: // move as second
 //                choice = strategyAsSecond(FC, MC);
@@ -372,7 +423,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                         maxDepthSearch,
                         workTime
                 );
-                choice = outcome.move;
                 break;
         }
         // we returned so assuming all right
@@ -392,9 +442,9 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         }
 
         if( isStateValid() )
-            mark(currentBoard, choice, 0);
+            mark(currentBoard, outcome.move, 0);
 
-        if( DEBUG_SHOW_STATS && outcome != null)
+        if( DEBUG_SHOW_STATS )
             printStats(outcome, elapsed, timeLeft);
 
         if( DEBUG_SHOW_BOARD )
@@ -405,7 +455,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         round++;
 
-        return choice;
+        return outcome.move;
     }
 
     @Override
@@ -936,7 +986,10 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     @Override
     public MNKCell[] getCellCandidates(MNKBoard board) {
-        sortDirtyWeights(currentBoard.currentPlayer());
+        if( shouldSortCellsIds ) {
+            sortDirtyWeights(currentBoard.currentPlayer());
+            shouldSortCellsIds = false;
+        }
         MNKCell[] buffer = new MNKCell[freeCellsCount];
         for (int i = 0; i < freeCellsCount; i++) {
             int[] position = currentBoard.getMatrixIndexesFromArrayIndex(cellsIds[i]);
@@ -954,6 +1007,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     private void addDirty( int i , int j) {
         dirtyCellsIds[dirtyCellsIndexesCount] = currentBoard.getArrayIndexFromMatrixIndexes(i, j);
         dirtyCellsIndexesCount++;
+        shouldSortCellsIds = true;
 
     }
 
