@@ -83,12 +83,15 @@ public class IterativeDeepeningPlayer extends MyPlayer {
     @Override
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
         MNKCell choice = null;
+        AlphaBetaOutcome outcome = null;
+        long elapsed = 0;
+        long startTime = System.currentTimeMillis();
+        long endTime = startTime + (long) ( timeout * (99.0/100.0));
+
         if( !isStateValid()) {
             if( DEBUG_SHOW_INFO )
                 Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
-            long startTime = System.currentTimeMillis();
             restore(FC, MC);
-            long elapsed = System.currentTimeMillis() - startTime;
             if( DEBUG_SHOW_INFO )
                 Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state, time spent: " + (elapsed/1000.0) + Utils.ConsoleColors.RESET );
             setInValidState();
@@ -101,6 +104,8 @@ public class IterativeDeepeningPlayer extends MyPlayer {
                 choice = null;
             }
         }
+        elapsed += System.currentTimeMillis() - startTime;
+        endTime -= elapsed;
 
         switch ( MC.length ){
             case 0: // move as first
@@ -109,36 +114,34 @@ public class IterativeDeepeningPlayer extends MyPlayer {
 //            case 1: // move as second
 //                choice = strategyAsSecond(FC, MC);
 //                break;
+            default:
+                outcome = iterativeDeepening(
+                        currentBoard,
+                        true,
+                        STANDARD_SCORES.get(STATE_LOSE),
+                        STANDARD_SCORES.get(STATE_WIN),
+                        this.maxDepthSearch,
+                        endTime
+                );
+                choice = outcome.move;
+                break;
         }
-
-        if( choice != null ) {
-            mark(currentBoard, choice, 0);
-            round++;
-
-            if( DEBUG_SHOW_BOARD )
-                Debug.println( "after move:\n" + boardToString() );
-            return choice;
-        }
-
-        AlphaBetaOutcome outcome = null;
-
-
-        outcome = iterativeDeepening(
-                currentBoard,
-                true,
-                STANDARD_SCORES.get(STATE_LOSE),
-                STANDARD_SCORES.get(STATE_WIN),
-                this.maxDepthSearch
-        );
 
         if( Debug.DEBUG_ENABLED ) {
             if(!isStateValid()){
+                if( DEBUG_SHOW_INFO )
+                    Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
+                startTime = System.currentTimeMillis();
                 restore(FC, MC);
+                elapsed = System.currentTimeMillis() - startTime;
+                if( DEBUG_SHOW_INFO )
+                    Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state, time spent: " + (elapsed/1000.0) + Utils.ConsoleColors.RESET );
+                setInValidState();
             }
         }
 
         if( isStateValid() )
-            mark(currentBoard, outcome.move, 0);
+            mark(currentBoard, choice, 0);
 
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
@@ -146,13 +149,11 @@ public class IterativeDeepeningPlayer extends MyPlayer {
             Debug.println( "Final board:\n" + boardToString() );
         }
         round++;
-
-        return outcome.move;
+        return choice;
     }
 
-    public AlphaBetaOutcome iterativeDeepening(MNKBoard tree, boolean shouldMaximize, int a, int b, int maxDepthSearch ) {
+    public AlphaBetaOutcome iterativeDeepening(MNKBoard tree, boolean shouldMaximize, int a, int b, int maxDepthSearch, long endTime ) {
         long startTime = System.currentTimeMillis();
-        long endTime = startTime + (long) ( timeout * (99.0/100.0));
         long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
 
         long partialStartTime = 0,

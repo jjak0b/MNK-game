@@ -318,9 +318,19 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
      */
     @Override
     public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
+        AlphaBetaOutcome outcome = null;
         MNKCell choice = null;
+        long elapsed = 0;
+        long startTime = System.currentTimeMillis();
+        long endTime = startTime + (long) ( timeout * (99.0/100.0));
+
         if( !isStateValid()) {
+            if( DEBUG_SHOW_INFO )
+                Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
             restore(FC, MC);
+            if( DEBUG_SHOW_INFO )
+                Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state, time spent: " + (elapsed/1000.0) + Utils.ConsoleColors.RESET );
+            setInValidState();
         }
         else {
             if (MC.length > 0) {
@@ -330,7 +340,17 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                 choice = null;
             }
         }
+        elapsed += System.currentTimeMillis() - startTime;
 
+        startTime = System.currentTimeMillis();
+        // pre calculate expected work time
+        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
+        long workTime = endTime;
+        workTime -= elapsed;
+        workTime -= expectedTimeRequiredToExit;
+
+        // set in invalid state, because if running out time, this function may be terminated
+        invalidateState();
         switch ( MC.length ){
             case 0: // move as first
                 choice = strategyAsFirst(FC, MC);
@@ -338,57 +358,44 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 //            case 1: // move as second
 //                choice = strategyAsSecond(FC, MC);
 //                break;
+            default:
+                if ( DEBUG_SHOW_CANDIDATES )
+                    Debug.println("Candidates: " + Arrays.toString(getCellCandidates(currentBoard)));
+                // TODO: check with start @ (5, 4 ) in 7 7 4
+                // Good: 6 6 4, 7 7 4 -> moveleft = 5
+                outcome = alphaBetaPruning(
+                        currentBoard,
+                        true,
+                        STANDARD_SCORES.get(STATE_LOSE),
+                        STANDARD_SCORES.get(STATE_WIN),
+                        0,
+                        maxDepthSearch,
+                        workTime
+                );
+                choice = outcome.move;
+                break;
         }
-
-        if( choice != null ) {
-            mark(currentBoard, choice, 0);
-            round++;
-
-            if( DEBUG_SHOW_BOARD )
-                Debug.println( "after move:\n" + boardToString() );
-            return choice;
-        }
-
-        long start = System.currentTimeMillis();
-        long endTime = start + (long) ( timeout * (99.0/100.0));
-        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
-        long workTime = start + ( timeout - expectedTimeRequiredToExit );
-
-        if ( DEBUG_SHOW_CANDIDATES )
-            Debug.println("Candidates: " + Arrays.toString(getCellCandidates(currentBoard)));
-        // set in invalid state, because if running out time, this function may be terminated
-        invalidateState();
-
-        // TODO: check with start @ (5, 4 ) in 7 7 4
-        // Good: 6 6 4, 7 7 4 -> moveleft = 5
-        AlphaBetaOutcome outcome = null;
-
-         outcome = alphaBetaPruning(
-                    currentBoard,
-                    true,
-                    STANDARD_SCORES.get(STATE_LOSE),
-                    STANDARD_SCORES.get(STATE_WIN),
-                    0,
-                    maxDepthSearch,
-                    workTime
-            );
-        long end = System.currentTimeMillis();
-        long elapsed = end-start;
-        long timeLeft = (endTime-end);
-
         // we returned so assuming all right
         setInValidState();
 
-        if( DEBUG_SHOW_STATS )
-            printStats(outcome, elapsed, timeLeft);
+        elapsed += System.currentTimeMillis()-startTime;
+        long timeLeft = (endTime-elapsed);
 
         if( Debug.DEBUG_ENABLED ) {
             if(!isStateValid()){
+                if( DEBUG_SHOW_INFO )
+                    Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
                 restore(FC, MC);
+                if( DEBUG_SHOW_INFO )
+                    Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state" + Utils.ConsoleColors.RESET );
             }
         }
 
-        mark(currentBoard, outcome.move, 0);
+        if( isStateValid() )
+            mark(currentBoard, choice, 0);
+
+        if( DEBUG_SHOW_STATS && outcome != null)
+            printStats(outcome, elapsed, timeLeft);
 
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
@@ -398,7 +405,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         round++;
 
-        return outcome.move;
+        return choice;
     }
 
     @Override
