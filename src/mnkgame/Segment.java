@@ -11,6 +11,14 @@ public class Segment {
         this.indexEnd = indexEnd;
     }
 
+    public void link(Segment to) {
+        if( indexEnd <= to.indexEnd )
+            this.indexEnd = to.indexEnd;
+        else {
+            this.indexStart = to.indexStart;
+        }
+    }
+
     public int length() {
         return indexStart >= 0 && indexEnd >= 0 ? indexEnd - indexStart : -1;
     }
@@ -22,7 +30,7 @@ public class Segment {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if( !(o instanceof Segment ) ) return false;
         Segment that = (Segment) o;
         return indexStart == that.indexStart && indexEnd == that.indexEnd;
     }
