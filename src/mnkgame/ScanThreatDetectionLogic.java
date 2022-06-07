@@ -34,6 +34,12 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
     }
 
     @Override
+    public Threat getBestThreat(int playerIndex, int directionType) {
+        Stack<Threat> playerHistory = bestThreatHistory[playerIndex][directionType];
+        return !playerHistory.isEmpty() ? playerHistory.peek() : null;
+    }
+
+    @Override
     public void mark(MNKBoard tree, MNKCell marked, int markingPlayer, int depth) {
         for ( Map.Entry<Integer, List<MNKCell>> adjEntry : getBoard().adj(marked).entrySet() ) {
             int directionType = adjEntry.getKey();

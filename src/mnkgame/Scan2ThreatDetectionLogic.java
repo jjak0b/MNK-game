@@ -13,8 +13,8 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
         return blocksOnDirection[directionType];
     }
 
-
-    public ThreatT getGreatestThreatOfPlayer(int playerIndex, int directionType) {
+    @Override
+    public ThreatT getBestThreat(int playerIndex, int directionType) {
         return playerThreatsOnDirection[playerIndex][directionType].peek();
     }
 

@@ -10,5 +10,7 @@ public interface ThreatDetectionLogic<T> {
 
     ScanResult getThreatInDirection(MNKCell source, int directionType);
 
+    T getBestThreat(int playerIndex, int directionType );
+
     boolean isCandidate(T threat);
 }
