@@ -15,6 +15,12 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
     // current streak power of each marked cell, first dimension is the player index
     protected Utils.Weight[][][][] streakWeights;
 
+/*
+    // legacy and unused stuff, here for future re-evaluation
+    protected UnionFindUndo<MNKCell>[][] comboMap;
+    protected boolean[][] isCellAddedToCombo;
+ */
+
     public ScanThreatDetectionLogic() {
 
     }
@@ -25,9 +31,11 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
         this.N = N;
         this.K = K;
 
+        // comboMap = new UnionFindUndo[2][Utils.DIRECTIONS.length];
         bestThreatHistory = new Stack[2][Utils.DIRECTIONS.length];
         for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
             for ( int directionType : Utils.DIRECTIONS ) {
+                // comboMap[playerIndex][directionType] = new UnionFindUndo<>();
                 bestThreatHistory[playerIndex][directionType] = new Stack<>();
             }
         }
@@ -41,9 +49,34 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
 
     @Override
     public void mark(MNKBoard tree, MNKCell marked, int markingPlayer, int depth) {
+
+        // Link the adjacent cells
+/*
+        UnionFindUndo<MNKCell>[] comboMap = getPlayerCombos(markingPlayer);
+        UnionFindUndo<MNKCell> combosInDirection;
+
+        // first add this cell to all directions combos
+        if( !isCellAddedToCombo[marked.i][marked.j] ) {
+            for ( int directionType : Utils.DIRECTIONS ) {
+                combosInDirection = comboMap[directionType];
+                combosInDirection.addElement(marked);
+            }
+            isCellAddedToCombo[marked.i][marked.j] = true;
+        }
+*/
+
         for ( Map.Entry<Integer, List<MNKCell>> adjEntry : getBoard().adj(marked).entrySet() ) {
             int directionType = adjEntry.getKey();
 
+/*
+            combosInDirection = comboMap[directionType];
+            for ( MNKCell adjCell : adjEntry.getValue() ) {
+                // if state is same of marked cell, then it has already been added to UnionFind structure for sure
+                if( adjCell.state == markState ) {
+                    combosInDirection.union(marked, adjCell);
+                }
+            }
+*/
             // evaluate if this streak is a threat
             ScanResult result = getThreatInDirection(marked, directionType);
             updateStreaksOnDirection(directionType, marked.i, marked.j, 1, markingPlayer, result );
@@ -56,9 +89,15 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
 
     @Override
     public void unMark(MNKBoard tree, MNKCell marked, int unMarkingPlayer, int depth) {
+        // Unlink the adjacent cells
+/*
+        UnionFindUndo<MNKCell>[] comboMap = getPlayerCombos(unMarkingPlayer);
+        UnionFindUndo<MNKCell> combosInDirection;
+*/
         for ( Map.Entry<Integer, List<MNKCell>> adjEntry : getBoard().adj(marked).entrySet() ) {
             int directionType = adjEntry.getKey();
 
+//          combosInDirection = comboMap[directionType];
             // evaluate if this streak is a threat
             ScanResult result = getThreatInDirection(marked, directionType);
             updateStreaksOnDirection(directionType, marked.i, marked.j, -1, unMarkingPlayer, result );
@@ -66,7 +105,20 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
             this.onScanCallback(result, directionType, marked, false, unMarkingPlayer );
 
             removeThreatOnUnmark(marked, directionType);
+
+/*
+            for ( MNKCell adjCell : adjEntry.getValue() ) {
+                // if state is same of marked cell, then it has already been added to UnionFind structure for sure
+                if( adjCell.state == markState ) {
+                    combosInDirection.undo();
+                }
+            }
+
+            // and after remove this cell from all directions combos
+            combosInDirection.undo();
+ */
         }
+//        isCellAddedToCombo[marked.i][marked.j] = false;
     }
 
     protected void evaluateThreat(Threat threat, int directionType) {
@@ -351,6 +403,11 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
         }
     }
 
+/*
+    protected UnionFindUndo<MNKCell>[] getPlayerCombos(int playerIndex) {
+        return comboMap[playerIndex];
+    }
+*/
     public Utils.Weight[][] getStreakWeights(int playerIndex, int directionType ) {
         return streakWeights[playerIndex][directionType];
     }
