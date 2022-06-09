@@ -2,12 +2,14 @@ package mnkgame;
 
 import java.util.*;
 
-public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>, Comparator<ThreatT> {
+public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2ThreatDetectionLogic.ThreatT>, Comparator<Scan2ThreatDetectionLogic.ThreatT> {
 
     protected int M, N, K;
 
-    protected RowOfBlocks[][] blocksOnDirection;
-    protected PriorityThreatsTracker[][] playerThreatsOnDirection;
+    // these are buckets of Trees, organized to make search fast O(log)
+    public RowOfBlocks[][] blocksOnDirection;
+    // these are buckets of a kind of modified Priority(Heap / queues) Stack
+    public PriorityThreatsTracker[][] playerThreatsOnDirection;
 
     public RowOfBlocks[] getRowsOfBlocksOnDirection( int directionType) {
         return blocksOnDirection[directionType];
@@ -117,11 +119,6 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
         }
     }
 
-    @Override
-    public ScanResult getThreatInDirection(MNKCell source, int directionType) {
-        return null;
-    }
-
     protected void fillBlocksInSequence(Segment[] highersOrLowers, RowOfBlocks blocks, boolean isHigher) {
         for (int d = 1; d < highersOrLowers.length; d++) {
             if( highersOrLowers[d-1] != null ){
@@ -146,8 +143,8 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
         List<ThreatT>[] threatsToRemove = new List[2];
         List<ThreatT>[] threatsToAdd = new List[2];
         for (int p = 0; p < 2; p++) {
-            threatsToRemove[i] = new ArrayList<>(2);
-            threatsToAdd[i] = new ArrayList<>(2);
+            threatsToRemove[p] = new ArrayList<>(2);
+            threatsToAdd[p] = new ArrayList<>(2);
         }
 
         RowOfBlocks blocks = blocksOnDirection[directionType][row];
@@ -177,11 +174,11 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             assert lowerOrEq.contains(column);
             assert !(lowerOrEq instanceof ThreatT);
 
-            leftPartition = new Segment(lowerOrEq.indexStart, myCellBlock.indexStart-1);
-            rightPartition = new Segment(myCellBlock.indexEnd+1, lowerOrEq.indexEnd);
+            leftPartition = new FreeSegment(lowerOrEq.indexStart, myCellBlock.indexStart-1);
+            rightPartition = new FreeSegment(myCellBlock.indexEnd+1, lowerOrEq.indexEnd);
 
             if( leftPartition.length() < 0 ) {
-                lowers[0] = blocks.lower(myCellBlock);
+                lowers[0] = lowerOrEq.prev; // blocks.lower(myCellBlock);
                 lower = lowers[0];
                 shouldMergeLeft = lower instanceof ThreatT && ((Streak) lower).color == color;
             }
@@ -190,7 +187,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             }
 
             if( rightPartition.length() < 0 ) {
-                highers[0] = blocks.higher(myCellBlock);
+                highers[0] = lowerOrEq.next; // blocks.higher(myCellBlock);
                 higher = highers[0];
                 shouldMergeRight = higher instanceof ThreatT && ((Streak) higher).color == color;
             }
@@ -199,7 +196,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             }
         }
         else {
-            myCellBlock = new Segment(column, column);
+            myCellBlock = new FreeSegment(column, column);
             lowerOrEq = blocks.floor(myCellBlock);
 
             assert lowerOrEq != null;
@@ -245,7 +242,10 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             blocks.remove(lowerOrEq);
             blocks.remove(higher);
 
-            lower.link(higher);
+            lower.merge(lowerOrEq);
+            lower.merge(higher);
+
+            lower.updateAdjacent();
 
             if(isMark) // the streak must be added / updated
                 streakBlock = ((Streak) lower);
@@ -263,10 +263,10 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             }
 
             // start merge operation
-            lowerOrEq.indexStart++;
+            lower.grow(1);
             if( lowerOrEq.length() < 0 )
                 blocks.remove(lowerOrEq);
-            lower.indexEnd++;
+            lower.updateAdjacent();
 
             if(isMark) // the streak must be added / updated
                 streakBlock = ((Streak) lower);
@@ -282,10 +282,10 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             }
 
             // start merge operation
-            lowerOrEq.indexEnd--;
+            higher.grow(0);
             if( lowerOrEq.length() < 0 )
                 blocks.remove(lowerOrEq);
-            higher.indexStart--;
+            higher.updateAdjacent();
 
             // the streak must be added / updated
             if(isMark)
@@ -302,12 +302,29 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
 
             // start merge operation
             blocks.remove(lowerOrEq);
-            if( leftPartition.length() >= 0 )
+
+            myCellBlock.insertPrev(lowerOrEq.prev);
+            myCellBlock.insertNext(lowerOrEq.next);
+
+            if( leftPartition.length() >= 0 ) {
                 blocks.add(leftPartition);
-            if( rightPartition.length() >= 0 )
+                myCellBlock.insertPrev(leftPartition);
+            }
+            if( rightPartition.length() >= 0 ) {
                 blocks.add(rightPartition);
-            if( myCellBlock instanceof ThreatT)
-                updateThreat((ThreatT) myCellBlock, blocks, lowers, highers);
+                myCellBlock.insertNext(rightPartition);
+            }
+
+            myCellBlock.indexStart = column; myCellBlock.indexEnd = column;
+
+            // case Threat -> will update the threat
+            // case free -> will update adjacent threat, than will tell adjacent to update their respective sides
+            myCellBlock.updateAdjacent();
+            if( lowerOrEq.prev != null )
+                lowerOrEq.prev.updateAdjacent();
+            if( lowerOrEq.next != null )
+                lowerOrEq.next.updateAdjacent();
+
             blocks.add(myCellBlock);
 
             if( isMark )
@@ -319,65 +336,12 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
             }
 
         }
-
-        ThreatT threat = new ThreatT(streakBlock);
-
         // Now update block on edges that can be owned by opponent or player, because we updated the available free cells
 
         // creates a mapping of cached blocks
-        if( lowers[1] == null ) lowers[1] = blocks.lower(lowers[0]);
-        if( highers[1] == null ) highers[1] = blocks.higher(highers[0]);
+        if( lowers[0] != null && lowers[1] == null ) lowers[1] = blocks.lower(lowers[0]);
+        if( highers[0] != null && highers[1] == null ) highers[1] = blocks.higher(highers[0]);
 
-        if( shouldMergeLeft && shouldMergeRight ) {
-            opponentOrPlayerBlockToUpdate[ 0 ] = lowers[ 0 ];
-            highersFromBottom[0] = lowers[1]; // free
-            highersFromBottom[1] = lowerOrEq; // marked by player
-            highersFromBottom[2] = highers[0]; // other free
-
-            opponentOrPlayerBlockToUpdate[ 1 ] = highers[1];
-            lowersFromTop[0] = highers[0]; // free
-            lowersFromTop[1] = lowerOrEq; // marked
-            lowersFromTop[2] = lowers[0]; // other free
-            opponentOrPlayerBlockToUpdate[ 1 ] = highers[ 0 ];
-        }
-        else if( shouldMergeLeft || shouldMergeRight ) {
-            // update the threat using cached blocks info
-            opponentOrPlayerBlockToUpdate[ 0 ] = lowers[ 0 ]; // this is a reference of a merged block
-
-            if( lowerOrEq.length() < 0 ) {
-                highersFromBottom[0] = highers[0]; // eventually free
-                highersFromBottom[1] = highers[1]; // eventually marked
-                highersFromBottom[2] = highers[2]; // eventually other free
-            }
-            else {
-                highersFromBottom[0]  = lowerOrEq; // free
-                highersFromBottom[1] = highers[0]; // marked
-                highersFromBottom[2] = highers[1]; // eventually other free
-            }
-
-            opponentOrPlayerBlockToUpdate[ 1 ] = highers[ 0 ]; // this is a reference of a merged block
-            if( lowerOrEq.length() < 0 ) {
-                lowersFromTop[0] = lowers[0]; // eventually free
-                lowersFromTop[1] = lowers[1]; // eventually marked
-                lowersFromTop[2] = lowers[2]; // eventually other free
-            }
-            else {
-                lowersFromTop[0] = lowerOrEq; // free
-                lowersFromTop[1] = lowers[0]; // marked
-                lowersFromTop[2] = lowers[1]; // eventually other free
-            }
-        }
-        else {
-            opponentOrPlayerBlockToUpdate[ 0 ] = lowers[1];// this is a block of any player
-            highersFromBottom[0] = lowers[0]; // free
-            highersFromBottom[1] = lowerOrEq; // marked by player
-            highersFromBottom[2] = highers[0]; // other free
-
-            opponentOrPlayerBlockToUpdate[ 1 ] = highers[1];
-            lowersFromTop[0] = highers[0]; // free
-            lowersFromTop[1] = lowerOrEq; // marked
-            lowersFromTop[2] = lowers[0]; // other free
-        }
 
         // Now update the threats, by replacing old threats
         if(isMark) {
@@ -508,24 +472,42 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
 
     /**
      *
-     * @param threat
+     * @param threatCandidate
      * @return true if the streak can be completed or not
      */
     @Override
-    public boolean isCandidate( ThreatT threat ) {
-        int streakCount = (1+threat.length());
-        int free;
+    public boolean isCandidate( ThreatInfo threatCandidate ) {
+
+        if( !(threatCandidate instanceof ThreatT )) return false;
+        ThreatT threat = (ThreatT) threatCandidate;
+
+        int streakCount = threat.getStreakCount();
+        int free = 0, other = 0, otherFree = 0;
         int freeOnTotal = 0;
 
-        int other = 0;
         for (int side = 0; side < 2; side++) {
-            free = threat.adjacentFree[side];
-            other = threat.freeNearOtherMarked[side];
+            free = threat.getFreeOnSide(side);
             freeOnTotal += free;
 
-            if( streakCount + free + other >= K
-            || streakCount + freeOnTotal + other >= K )
-                return true;
+            // gradually check if can win due to a side properties[breadth], increasing by breadth each check
+            for (int breadth = 1; breadth <= 3; breadth++) {
+                switch (breadth){
+                    case 1: // win range is <= breadth 1
+                        if( (streakCount + free >= K || streakCount + freeOnTotal >= K) )
+                            return true;
+                        break;
+                    case 2: // win range is <= breadth 2
+                        other = threat.getOtherMarkedOnSide(side);
+                        if( (streakCount + free + other >= K) )
+                            return true;
+                        break;
+                    case 3: // win range is <= breadth 3
+                        otherFree = threat.getOtherFreeOnSide(side);
+                        if( (streakCount + free + other + otherFree >= K) )
+                            return true;
+                        break;
+                }
+            }
         }
         return false;
     }
@@ -555,15 +537,246 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<ThreatT>,
         return coordinates;
     }
 
-    @Override
+
     public int compare(ThreatT o1, ThreatT o2) {
         return 0;
     }
+
+class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
+    // this is the breadth of this streak allow to win for
+    int score;
+    int breadthRequiredForWin;
+
+    // free segments on left and right
+    int[] adjacentFree = {0, 0};
+    int[] otherMarkedNearFree = {0, 0};
+    int[] freeNearOtherMarked = {0, 0};
+
+    public ThreatT(Streak streak) {
+        super(streak.indexStart, streak.indexEnd, streak.color);
+    }
+
+    public ThreatT(ThreatT threat) {
+        super( threat.indexStart, threat.indexEnd, threat.color);
+        for (int side = 0; side < 2; side++) {
+            this.adjacentFree[side] = threat.adjacentFree[side];
+            this.otherMarkedNearFree[side] = threat.otherMarkedNearFree[side];
+            this.freeNearOtherMarked[side] = threat.freeNearOtherMarked[side];
+        }
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    void updateScore() {
+        int streakCount = (1+length());
+        int free = 0, other = 0, otherFree = 0;
+        int freeOnTotal = 0;
+        final int[] leftOnSide = {0, 0};
+        final int[] opponentMovesRequiredToCounterThis = {0, 0};
+        final int[] waysForOpponentToCounterMe = {0, 0};
+        final int[] breadthRequiredForWinOnSide = {0, 0};
+
+        for (int side = 0; side < 2; side++) {
+            free = getFreeOnSide(side);
+            freeOnTotal += free;
+
+            // gradually check if can win due to a side properties[breadth], increasing by breadth each check
+            for (int breadth = 1; breadth <= 3; breadth++) {
+                switch (breadth){
+                    case 1: // win range is <= breadth 1
+                        if( (streakCount + free >= K || streakCount + freeOnTotal >= K) ) {
+                            breadthRequiredForWinOnSide[side] = 1;
+
+                            leftOnSide[ side ] = K - streakCount;
+                            // risky scenario
+                            if( streakCount + free >= K ) {
+                                opponentMovesRequiredToCounterThis[side] = 1; // a side
+                                waysForOpponentToCounterMe[side] = 1;
+                            }
+                            // if both side = 1 then the opponent moves required are 2, so it's a better scenario
+                            // because need an opponent mark on both side
+                            // if( streakCount + freeOnTotal >= K ) {
+
+                        }
+                        break;
+                    case 2: // win range is <= breadth 2
+                        other = getOtherMarkedOnSide(side);
+                        if( (streakCount + free + other >= K) ) {
+                            breadthRequiredForWinOnSide[side] = 2;
+                            leftOnSide[ side ] = K - streakCount;
+                            // risky scenario
+
+                            // opponent just need to mark an adjacent free
+                            waysForOpponentToCounterMe[side] = 1;
+                            opponentMovesRequiredToCounterThis[side] = 1;
+                        }
+                        break;
+                    case 3: // win range is <= breadth 3
+                        otherFree = getOtherFreeOnSide(side);
+                        if( (streakCount + free + other + otherFree >= K) ) {
+                            breadthRequiredForWinOnSide[side] = 3;
+                            leftOnSide[ side ] = K - streakCount;
+
+                            // very risky scenario
+                            // opponent just need to mark an adjacent or other free to counter
+                            waysForOpponentToCounterMe[side] = 2;
+                            opponentMovesRequiredToCounterThis[side] = 1;
+                        }
+                        break;
+                }
+            }
+        }
+
+    }
+    /**
+     * Update data from adjacent link
+     * @cost.time {@link #updateDataOnSide }
+     * @param adj
+     */
+    @Override
+    public void onLinkUpdate(Segment adj) {
+        int side = -1;
+
+        if( adj == prev ){
+            side = 0; // left
+        }
+        else if( adj == next ) {
+            side = 1; // right
+        }
+
+        // iterate over side and update data
+        if( side >= 0)
+            updateDataOnSide(side);
+        updateScore();
+    }
+
+    /**
+     * Iterate over n=3 segment on a side to update data
+     * @cost.time O(3)
+     * @param side 0 for prev, else for next
+     */
+    protected void updateDataOnSide( int side) {
+
+        Segment it = this;
+        for (int i = 0; i < 3; i++) {
+            if( it == null ) break;
+            it = side == 0 ? it.prev : it.next;
+            if( i == 0 ) {
+                if(it != null && !(it instanceof Streak) )
+                    adjacentFree[side] = 1 + it.length();
+                else
+                    adjacentFree[side] = 0;
+            }
+            else if( i == 1 && adjacentFree[side] > 0) {
+                if(it != null && it instanceof Streak && ((Streak) it).color == color )
+                    otherMarkedNearFree[side] = 1 + it.length();
+                else
+                    otherMarkedNearFree[side] = 0;
+            }
+            else if( i == 2 && otherMarkedNearFree[side] > 0 ) {
+                if(it != null && !(it instanceof Streak) )
+                    freeNearOtherMarked[side] = 1 + it.length();
+                else
+                    freeNearOtherMarked[side] = 0;
+            }
+        }
+    }
+
+    @Override
+    public int[] getLocation() {
+        return new int[]{ indexStart, indexEnd };
+    }
+
+    @Override
+    public MNKCellState getColor() {
+        return super.color;
+    }
+
+    public int getStreakCount() {
+        return 1+length();
+    }
+
+    @Override
+    public int getAdjacentFreeCount() {
+        return getFreeOnSide(0) + getFreeOnSide(1);
+    }
+
+    @Override
+    public int getOtherMarkedCount() {
+        return getOtherMarkedOnSide(0) + getOtherMarkedOnSide(1);
+    }
+
+    @Override
+    public int getOtherFreeCount() {
+        return getOtherFreeOnSide(0) + getOtherFreeOnSide(1);
+    }
+
+    @Override
+    public int getFreeOnSide(int side) {
+        int count = 0;
+        Segment base = side == 0 ? prev : next;
+        if( base instanceof FreeSegment ) {
+            count = 1+base.length();
+        }
+        return count;
+    }
+
+    @Override
+    public int getOtherMarkedOnSide(int side) {
+        int count = 0;
+        Segment base = side == 0 ? prev : next;;
+
+        for (int i = 0; i < 2; i++) {
+            if( i == 0 && base instanceof FreeSegment ) {
+                base = side == 0 ? base.prev : base.next;
+            }
+            else if( i == 1 && base instanceof Streak && ((Streak) base).color == getColor() ) {
+                count = 1+base.length();
+            }
+            else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    @Override
+    public int getOtherFreeOnSide(int side) {
+        int count = 0;
+        Segment base = side == 0 ? prev : next;
+
+        for (int i = 0; i < 3; i++) {
+            if( (i == 0 && base instanceof FreeSegment)
+                    || (i == 1 && base instanceof Streak && ((Streak) base).color == getColor() ) ) {
+                base = side == 0 ? base.prev : base.next;
+            }
+            else if (i == 2 && base instanceof FreeSegment){
+                count = 1+base.length();
+            }
+            else {
+                break;
+            }
+        }
+        return count;
+    }
 }
 
+/**
+ * Class as kind of PriorityBucketsHeapStack, combine multiple data structure properties.
+ * Allow to get a "best item" as "item with most priority value through all Priority Queues using only push and pop operations.
+ *
+ * Buckets of Priority queues because multiple index can be associated to groups of items
+ * An Heap because can add, remove and update items in O(log d) time (each) providing also an index of the bucket on push
+ *  -  This allow to access to the most important item in O(1)
+ * A stack because it behaves like a stack:  each push can be undone with a pop
+ *  - This allow tracking of items insert / deletion order
+ *  - This allow tracking the best bucket's index in O(1) ( so the priority queue with the best item)
+ */
 class PriorityThreatsTracker {
 
-    static class HistoryItem {
+    class HistoryItem {
         int row;
         int oldBestRow;
         int newBestRow;
@@ -581,6 +794,7 @@ class PriorityThreatsTracker {
         for (int i = 0; i < rowCount; i++) {
             this.rowsOFPQ[i] = new PriorityQueue<>(rowCount, threatTComparator);
         }
+        this.historyOnRow = new Stack<>();
     }
 
     /**
@@ -592,6 +806,14 @@ class PriorityThreatsTracker {
         return rowsOFPQ[historyOnRow.peek().newBestRow].peek();
     }
 
+    /**
+     * remove items and add new ones to the priority queue.
+     * @cost.time O(log d)
+     * @param row
+     * @param threatsToRemove
+     * @param threatsToAdd
+     * @return
+     */
     public boolean push(int row, ThreatT[] threatsToRemove, ThreatT[] threatsToAdd ) {
 
         Stack<HistoryItem> history = historyOnRow;
@@ -618,9 +840,17 @@ class PriorityThreatsTracker {
             item.oldBestRow = oldBestRow;
         }
 
+        history.push(item);
+
         return result;
     }
 
+    /**
+     * Restore priority queue's order on a row, by removing the last added items, and re-adding removed items
+     * @cost.time O(log d)
+     * @param row
+     * @return
+     */
     public boolean pop(int row) {
         Stack<HistoryItem> history = historyOnRow;
         PriorityQueue<ThreatT> pq = rowsOFPQ[row];
@@ -639,7 +869,7 @@ class PriorityThreatsTracker {
 
 }
 
-class RowOfBlocks extends TreeSet<Segment> {
+public class RowOfBlocks extends TreeSet<Segment> {
     int rowSize;
 
     public RowOfBlocks(Comparator<Segment> comparator) {
@@ -649,11 +879,11 @@ class RowOfBlocks extends TreeSet<Segment> {
     public RowOfBlocks(Comparator<Segment> comparator, int size) {
         this(comparator);
         this.rowSize = size;
-        this.add(new Segment(0, this.rowSize-1));
+        this.add(new FreeSegment(0, this.rowSize-1));
     }
 }
 
-class Streak extends Segment {
+public class Streak extends Segment {
     public MNKCellState color;
 
     public Streak(int indexStart, int indexEnd, MNKCellState color) {
@@ -689,41 +919,36 @@ class Streak extends Segment {
     }
 }
 
-class ThreatT extends Streak {
-    // free segments on left and right
-    int[] adjacentFree = {0, 0};
-    int[] otherMarkedNearFree = {0, 0};
-    int[] freeNearOtherMarked = {0, 0};
+/**
+ * Class that works together with {@link ThreatT}
+ * This class notify adjacent {@link ThreatT} when the adjacent on opposite side updates
+ */
+public class FreeSegment extends Segment {
 
-    public ThreatT(Streak streak) {
-        super(streak.indexStart, streak.indexEnd, streak.color);
+    public FreeSegment(int indexStart, int indexEnd) {
+        super(indexStart, indexEnd);
     }
-    public ThreatT(ThreatT threat) {
-        super( threat.indexStart, threat.indexEnd, threat.color);
-        for (int side = 0; side < 2; side++) {
-            this.adjacentFree[side] = threat.adjacentFree[side];
-            this.otherMarkedNearFree[side] = threat.otherMarkedNearFree[side];
-            this.freeNearOtherMarked[side] = threat.freeNearOtherMarked[side];
+
+    @Override
+    public void onLinkUpdate(Segment adj) {
+        if( adj instanceof ThreatT ) {
+            if( adj == next ) {
+                if( prev != null )
+                    prev.onLinkUpdate(this);
+            }
+            else if( adj == prev ) {
+                if( next != null )
+                    next.onLinkUpdate(this);
+            }
         }
     }
 
     @Override
-    public void link(Segment to) {
-        super.link(to);
-        if( to instanceof ThreatT && this.color == ((ThreatT) to).color ) {
-            int side;
-            if( indexEnd <= to.indexEnd )
-                side = 1; // right
-            else
-                side = 0; // left
-            this.adjacentFree[ side ] = ((ThreatT) to).adjacentFree[ side ];
-            this.otherMarkedNearFree[ side ] = ((ThreatT) to).otherMarkedNearFree[ side ];
-            this.freeNearOtherMarked[ side ] = ((ThreatT) to).freeNearOtherMarked[ side ];
-        }
-
+    public String toString() {
+        return "FreeSegment{" +
+                "" + indexStart +
+                ", "+ indexEnd +
+                '}';
     }
-
-    public int getStreakCount() {
-        return 1+length();
-    }
+}
 }

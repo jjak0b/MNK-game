@@ -16,6 +16,23 @@ public class Utils {
             DIRECTION_TYPE_HORIZONTAL,
             DIRECTION_TYPE_OBLIQUE_LR
     };
+    public static String getDirectionSymbol(int directionType) {
+        return switch (directionType) {
+            case DIRECTION_TYPE_VERTICAL -> "|";
+            case DIRECTION_TYPE_OBLIQUE_RL -> "\\";
+            case DIRECTION_TYPE_HORIZONTAL -> "--";
+            case DIRECTION_TYPE_OBLIQUE_LR -> "/";
+            default -> "UNKNOWN";
+        };
+    }
+
+    public static String getPlayerSymbol(MNKCellState state) {
+        return switch (state) {
+            case P1 -> "X";
+            case P2 -> "O";
+            case FREE -> "#";
+        };
+    }
     // clockwise offsets ( center to left, center to right)
     public final static int[][][] DIRECTIONS_OFFSETS = {
             // DIRECTION_TYPE_VERTICAL
@@ -99,6 +116,75 @@ public class Utils {
         return Arrays.toString(cells);
     }
 
+    public static String toString(Scan2ThreatDetectionLogic.RowOfBlocks[] rowsOfBlocks ) {
+        int rowsCount = rowsOfBlocks.length;
+        List<String[]> rows = new ArrayList<>(rowsCount);
+
+        int maxColumns = 0;
+        for (int i = 0; i < rowsCount; i++) {
+            Iterator<Segment> blockIt = rowsOfBlocks[i].iterator();
+            List<String> row = new LinkedList<>();
+            int j = 0;
+            // header column
+            row.add(Utils.ConsoleColors.YELLOW +  String.valueOf(i) + Utils.ConsoleColors.RESET );
+
+            while (blockIt.hasNext()) {
+                Segment block = blockIt.next();
+                String cell = "";
+                for (int l = 0; l < 1 + block.length(); l++) {
+                    if( block instanceof Scan2ThreatDetectionLogic.Streak ) {
+                        MNKCellState state = ((Scan2ThreatDetectionLogic.Streak) block).color;
+
+                        if( Debug.DEBUG_USE_COLORS ) {
+                            switch (((Scan2ThreatDetectionLogic.Streak) block).color) {
+                                case P1:
+                                    if (Debug.DEBUG_USE_COLORS)
+                                        cell = Utils.ConsoleColors.RED;
+                                    break;
+                                case P2:
+                                    if (Debug.DEBUG_USE_COLORS)
+                                        cell= Utils.ConsoleColors.BLUE;
+                                    break;
+                                case FREE:
+                                    if (Debug.DEBUG_USE_COLORS)
+                                        cell = Utils.ConsoleColors.RESET;;
+                                    break;
+                            }
+                        }
+                        cell += Utils.getPlayerSymbol(state);
+                    }
+                    else {
+                        if( Debug.DEBUG_USE_COLORS ) {
+                            cell = Utils.ConsoleColors.WHITE;
+                        }
+                        cell += Utils.getPlayerSymbol(MNKCellState.FREE);
+                    }
+                    if( Debug.DEBUG_USE_COLORS )
+                        cell += Utils.ConsoleColors.RESET;
+                    row.add(cell);
+                    j++;
+                }
+            }
+            maxColumns = Math.max(maxColumns, j);
+            rows.add( row.toArray(new String[0]) );
+        }
+
+        // compute header row
+        List<String> row = new LinkedList<>();
+        if( Debug.DEBUG_USE_COLORS )
+            row.add( Utils.ConsoleColors.YELLOW + "\\" + Utils.ConsoleColors.RESET );
+        else
+            row.add( "\\" );
+        for (int i = 0; i < maxColumns; i++)
+            if( Debug.DEBUG_USE_COLORS )
+                row.add( Utils.ConsoleColors.YELLOW +  String.valueOf(i) + Utils.ConsoleColors.RESET );
+            else
+                row.add( String.valueOf(i) );
+        rows.add(0, row.toArray(new String[0] ));
+
+        return Utils.tableToString(rows);
+    }
+
     /**
      * Format columns of each row to be aligned
      * @param rows
@@ -107,10 +193,16 @@ public class Utils {
     public static String tableToString(Iterable<String[]> rows ) {
         StringBuilder table = new StringBuilder();
         final int charsPerTab = 4;
+
         int[] maxCharCountPerColumn = null;
         for (String[] row : rows) {
             if( maxCharCountPerColumn == null )
                 maxCharCountPerColumn = new int[row.length];
+            else if( maxCharCountPerColumn.length < row.length ) {
+                int[] tmp = new int[row.length];
+                System.arraycopy(maxCharCountPerColumn, 0, tmp, 0, maxCharCountPerColumn.length );
+                maxCharCountPerColumn = tmp;
+            }
             for (int j = 0; j < row.length; j++) {
                 maxCharCountPerColumn[j] = Math.max(maxCharCountPerColumn[j], row[j].length());
             }
@@ -126,6 +218,10 @@ public class Utils {
         }
 
         return table.toString();
+    }
+
+    public static MNKCell getLastMarked(MNKBoard board) {
+        return board.MC.peekLast();
     }
 
     public static class ConsoleColors {

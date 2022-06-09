@@ -1,11 +1,8 @@
 package mnkgame;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
-public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<Threat>, Comparator<Threat> {
+public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<ThreatInfo>, Comparator<ThreatInfo> {
 
     int M, N, K;
 
@@ -31,12 +28,22 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
         this.N = N;
         this.K = K;
 
+        streakWeights = new Utils.Weight[2][Utils.DIRECTIONS.length][M][N];
         // comboMap = new UnionFindUndo[2][Utils.DIRECTIONS.length];
         bestThreatHistory = new Stack[2][Utils.DIRECTIONS.length];
         for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
             for ( int directionType : Utils.DIRECTIONS ) {
                 // comboMap[playerIndex][directionType] = new UnionFindUndo<>();
                 bestThreatHistory[playerIndex][directionType] = new Stack<>();
+            }
+
+            for (int i = 0; i < M; i++) {
+                for (int j = 0; j < N; j++) {
+                    MNKCell c = new MNKCell(i, j);
+                    for (int directionType : Utils.DIRECTIONS ) {
+                        streakWeights[playerIndex][directionType][i][j] = new Utils.Weight(c, 0);
+                    }
+                }
             }
         }
     }
@@ -425,20 +432,22 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
      * @return true if the streak can be completed or not
      */
     @Override
-    public boolean isCandidate( Threat threat ) {
-        return threat.streakCount + threat.totalAvailableMovesOnWinRange + threat.otherClosestStreakCount >= K;
+    public boolean isCandidate( ThreatInfo threat ) {
+        return ( threat.getStreakCount() + threat.getAdjacentFreeCount() >= K )
+            || ( threat.getStreakCount() + threat.getAdjacentFreeCount() + threat.getOtherMarkedCount() >= K )
+            || ( threat.getStreakCount() + threat.getAdjacentFreeCount() + threat.getOtherMarkedCount() + threat.getOtherFreeCount() >= K );
     }
 
     @Override
-    public int compare(Threat o1, Threat o2) {
+    public int compare(ThreatInfo o1, ThreatInfo o2) {
         int comp = 0;
 
         boolean isCandidate1 = isCandidate(o1);
         boolean isCandidate2 = isCandidate(o2);
 
         if( isCandidate1 && isCandidate2 ) {
-            int moveLeftToWin1 = Math.max(0, K - (o1.streakCount + o1.otherClosestStreakCount));
-            int moveLeftToWin2 = Math.max(0, K - (o2.streakCount + o2.otherClosestStreakCount));
+            int moveLeftToWin1 = Math.max(0, K - (o1.getStreakCount() + o1.getOtherMarkedCount()));
+            int moveLeftToWin2 = Math.max(0, K - (o2.getStreakCount() + o2.getOtherMarkedCount()));
 
             // lesser the moves left are and more dangerous the threat is
             comp = Integer.compareUnsigned(moveLeftToWin2, moveLeftToWin1);
@@ -450,11 +459,11 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
 
         if( comp == 0 )
             // check which streak is more important
-            comp = Integer.compareUnsigned(o1.streakCount, o2.streakCount);
+            comp = Integer.compareUnsigned(o1.getStreakCount(), o2.getStreakCount());
 
         // have multiple streaks with same score, so check which have more chances to fill the streak
         if( comp == 0 )
-            comp = Integer.compareUnsigned(o1.nearAvailableMoves, o2.nearAvailableMoves);
+            comp = Integer.compareUnsigned(o1.getAdjacentFreeCount()+o1.getOtherFreeCount(), o2.getAdjacentFreeCount()+o2.getOtherFreeCount());
 
         return comp;
     }
@@ -467,7 +476,7 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
      * @param isMark
      * @param playerIndex
      */
-    public abstract void onScanCallback(ScanResult result, int directionType, MNKCell source, boolean isMark, int playerIndex);
+    public abstract void onScanCallback(DirectionThreatInfo result, int directionType, MNKCell source, boolean isMark, int playerIndex);
 
     /**
      * Board getter used to only ready board info
@@ -481,4 +490,103 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
      */
     public abstract int getSimulatedRound();
 
+    static class Threat implements ThreatInfo {
+        // round of evaluation of this threat
+        int round;
+
+        // current streak at this round
+        int streakCount;
+
+        // amount of slots left available adjacent to the streak
+        int nearAvailableMoves;
+
+        // amount of slot left in winnable range that are available, this consider also near streaks
+        int totalAvailableMovesOnWinRange;
+
+        // closest streak count near available moves left, that can be reached through free cells
+        int otherClosestStreakCount;
+
+        // amount of slots left to link the streak from current streak to the other
+        int availableMovesFromOtherClosestStreak;
+
+        // move reference of the streak
+        MNKCell move;
+
+        @Override
+        public int[] getLocation() {
+            return new int[]{move.i, move.j};
+        }
+
+        @Override
+        public MNKCellState getColor() {
+            return move.state;
+        }
+
+        @Override
+        public int getStreakCount() {
+            return streakCount;
+        }
+
+        @Override
+        public int getAdjacentFreeCount() {
+            return nearAvailableMoves;
+        }
+
+        @Override
+        public int getOtherMarkedCount() {
+            return otherClosestStreakCount;
+        }
+
+        @Override
+        public int getOtherFreeCount() {
+            return availableMovesFromOtherClosestStreak;
+        }
+
+        @Override
+        public String toString() {
+            return "Threat{" +
+                    "round=" + round +
+                    ", streakCount=" + streakCount +
+                    ", freeMovesLeftToCompleteStreak=" + totalAvailableMovesOnWinRange +
+                    ", nearAvailableMoves=" + nearAvailableMoves +
+                    ", otherClosestStreakCount=" + otherClosestStreakCount +
+                    ", availableMovesFromOtherClosestStreak=" + availableMovesFromOtherClosestStreak +
+                    ", move=" + move +
+                    '}';
+        }
+    }
+
+    static class ScanResult extends DirectionThreatInfo {
+        public Threat threat;
+
+        @Override
+        public int[] getLocation() {
+            return threat.getLocation();
+        }
+
+        @Override
+        public MNKCellState getColor() {
+            return threat.getColor();
+        }
+
+        @Override
+        public int getStreakCount() {
+            return threat.getStreakCount();
+        }
+
+        @Override
+        public int getAdjacentFreeCount() {
+            return threat.getAdjacentFreeCount();
+        }
+
+        @Override
+        public int getOtherMarkedCount() {
+            return threat.getOtherMarkedCount();
+        }
+
+        @Override
+        public int getOtherFreeCount() {
+            return threat.getOtherFreeCount();
+        }
+    }
 }

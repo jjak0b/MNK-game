@@ -1,6 +1,6 @@
 package mnkgame;
 
-public interface ThreatDetectionLogic<T> {
+public interface ThreatDetectionLogic<T extends ThreatInfo> {
 
     void init(int M, int N, int K);
 
@@ -8,9 +8,7 @@ public interface ThreatDetectionLogic<T> {
 
     void unMark(MNKBoard tree, MNKCell oldMarked, int markingPlayerIndex, int depth);
 
-    ScanResult getThreatInDirection(MNKCell source, int directionType);
-
     T getBestThreat(int playerIndex, int directionType );
 
-    boolean isCandidate(T threat);
+    boolean isCandidate( ThreatInfo threat);
 }
