@@ -2,23 +2,17 @@ package mnkgame;
 
 import java.util.*;
 
-public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable, Comparator<Threat> {
+public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable {
 
     protected float estimatedPercentOfTimeRequiredToExit;
 
     protected StatefulBoard currentBoard;
-
-    // protected UnionFindUndo<MNKCell>[][] comboMap;
-    // protected boolean[][] isCellAddedToCombo;
 
     protected int[][] corners;
 
     boolean isCurrentBoardLeftInValidState;
 
     public int[] bonusScoreOnMovesLeft;
-
-    // threat history stack for each player and for each direction
-    protected Stack<Threat>[][] bestThreatHistory;
 
     // players comparators to store and keep sorted player cells ids in candidate order
     protected Comparator<Integer>[] freeCellsIdsComparators;
@@ -28,9 +22,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
     // threat weights for free cells, first dimension is the player index
     protected Utils.Weight[][][] weights;
-
-    // current streak power of each marked cell, first dimension is the player index
-    protected Utils.Weight[][][][] streakWeights;
 
     // cellsIds[ i ] = id
     protected Integer[] cellsIds;
@@ -50,6 +41,12 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     public static final boolean DEBUG_SHOW_WEIGHTS = Debug.Player.DEBUG_SHOW_WEIGHTS;
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
     public static final boolean DEBUG_START_FIXED_MOVE = Debug.Player.DEBUG_START_FIXED_MOVE;
+
+    private ScanThreatDetectionLogic threatDetectionLogic;
+
+    public ThreatDetectionLogic<ThreatInfo> getThreatDetectionLogic() {
+        return threatDetectionLogic;
+    }
 
     public class PlayerMoveComparator implements Comparator<Integer> {
         private final int indexPlayer;
@@ -103,14 +100,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     public MyPlayer() {
 
     }
-    /**
-     *
-     * @param threat
-     * @return true if the streak can be completed or not
-     */
-    public boolean isCandidate( Threat threat ) {
-        return threat.streakCount + threat.totalAvailableMovesOnWinRange + threat.otherClosestStreakCount >= currentBoard.K;
-    }
 
     /**
      * Initialize the (M,N,K) Player
@@ -126,6 +115,24 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         super.initPlayer(M, N, K, first, timeout_in_secs);
 
+        threatDetectionLogic = new ScanThreatDetectionLogic() {
+
+            @Override
+            public void onScanCallback(DirectionThreatInfo result, int directionType, MNKCell source, boolean isMark, int playerIndex) {
+                int mod = isMark ? 1 : -1;
+                updateWeightsOnDirection(directionType, source.i, source.j,  mod, playerIndex, result );
+            }
+            @Override
+            public StatefulBoard getBoard() {
+                return currentBoard;
+            }
+
+            @Override
+            public int getSimulatedRound() {
+                return MyPlayer.this.getSimulatedRound();
+            }
+        };
+
         bonusScoreOnMovesLeft = new int[]{ 0, K*K*K, K*K };
 
         corners = new int[][]{ {0, 0}, {0, currentBoard.N-1}, {currentBoard.M-1, 0}, {currentBoard.M-1, currentBoard.N-1} };
@@ -133,7 +140,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         estimatedPercentOfTimeRequiredToExit = 5f/100f;
 
         initWeights(M, N, K);
-        initCombo();
+        threatDetectionLogic.init(M, N, K);
         initComparators();
         initCells(M, N, K);
 
@@ -207,8 +214,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     protected void initWeights(int M, int N, int K) {
         weights = new Utils.Weight[2][M][N];
         usefulness = new Utils.Weight[2][Utils.DIRECTIONS.length][M][N];
-        streakWeights = new Utils.Weight[2][Utils.DIRECTIONS.length][M][N];
-
         for (int p = 0; p < 2; p++) {
             for (int i = 0; i < currentBoard.M; i++) {
                 for (int j = 0; j < currentBoard.N; j++) {
@@ -219,7 +224,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
                     for (int directionType : Utils.DIRECTIONS ) {
                         usefulness[p][directionType][i][j] = new Utils.Weight(c, 0);
-                        streakWeights[p][directionType][i][j] = new Utils.Weight(c, 0);
                     }
                 }
             }
@@ -260,21 +264,26 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     }
 
     protected void initCombo() {
-        bestThreatHistory = new Stack[2][Utils.DIRECTIONS.length];
-        for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
-            for ( int directionType : Utils.DIRECTIONS ) {
-                bestThreatHistory[playerIndex][directionType] = new Stack<>();
-            }
-        }
-/*
-        comboMap = new UnionFindUndo[2][Utils.DIRECTIONS.length];
-        for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
-            for ( int directionType : Utils.DIRECTIONS ) {
-                comboMap[playerIndex][directionType] = new UnionFindUndo<>();
-            }
-        }
- */
+
     }
+/*
+    protected void restoreTrackingBoard(MNKCell[] FC, MNKCell[] MC) {
+        initTrackingBoard(currentBoard.M, currentBoard.N, currentBoard.K);
+
+        // mark to current state
+        for (int i = 0; i < MC.length; i++) {
+            mark(currentBoard, MC[ i ], -1);
+        }
+    }
+    @Override
+    public void restore(MNKCell[] FC, MNKCell[] MC) {
+        restoreTrackingBoard(FC, MC);
+        initCombo();
+        initWeights(currentBoard.M, currentBoard.N);
+        isCurrentBoardLeftInValidState = true;
+    }
+*/
+
 
     protected void restoreTrackingBoard(MNKCell[] FC, MNKCell[] MC) {
         // we suppose currentBoard.MC.size() >= MC.length
@@ -318,11 +327,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         isCurrentBoardLeftInValidState = false;
     }
 
-    /*
-    protected UnionFindUndo<MNKCell>[] getPlayerCombos(int playerIndex) {
-        return comboMap[playerIndex];
-    }
-*/
     protected AlphaBetaOutcome strategyAsFirst(MNKCell[] FC, MNKCell[] MC, long endTime) {
         if( DEBUG_START_FIXED_MOVE ) {
             int[] coords = corners[ 1 ]; // constant for debug
@@ -497,23 +501,22 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
             for (int indexPlayer = 0; indexPlayer < 2; indexPlayer++) {
                 for ( int directionType : Utils.DIRECTIONS ) {
 
-                    Stack<Threat> playerHistory = bestThreatHistory[indexPlayer][directionType];
-                    Threat bestPlayerThreat = !playerHistory.isEmpty() ? playerHistory.peek() : null;
+                    ThreatInfo bestPlayerThreat = getThreatDetectionLogic().getBestThreat(indexPlayer, directionType);
 
                     if( bestPlayerThreat != null) {
-                        maxPlayerStreak[indexPlayer] = Math.max(maxPlayerStreak[indexPlayer], bestPlayerThreat.streakCount);
+                        maxPlayerStreak[indexPlayer] = Math.max(maxPlayerStreak[indexPlayer], bestPlayerThreat.getStreakCount());
                         int old = minPlayerMoveLeft[indexPlayer];
-                        minPlayerMoveLeft[indexPlayer] = Math.min(old, Math.max(1, currentBoard.K - (bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount)));
+                        minPlayerMoveLeft[indexPlayer] = Math.min(old, Math.max(1, currentBoard.K - (bestPlayerThreat.getStreakCount() + bestPlayerThreat.getOtherMarkedCount())));
 
                         // apply these modifiers only on closest streak to win
                         if( old > minPlayerMoveLeft[indexPlayer] ) {
 
                             // need just one of adjacent
-                            if( bestPlayerThreat.streakCount + bestPlayerThreat.nearAvailableMoves >= board.K )
-                                waysToBeCountered[indexPlayer] = bestPlayerThreat.nearAvailableMoves;
+                            if( bestPlayerThreat.getStreakCount() + bestPlayerThreat.getAdjacentFreeCount() >= board.K )
+                                waysToBeCountered[indexPlayer] = bestPlayerThreat.getAdjacentFreeCount();
 
                             // need a link between 2 streak
-                            else if( bestPlayerThreat.streakCount + bestPlayerThreat.otherClosestStreakCount + bestPlayerThreat.availableMovesFromOtherClosestStreak >= board.K)
+                            else if( bestPlayerThreat.getStreakCount() + bestPlayerThreat.getOtherMarkedCount() + bestPlayerThreat.getOtherFreeCount() >= board.K)
                                 waysToBeCountered[indexPlayer] = 1;
                         }
                     }
@@ -557,11 +560,14 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
      * based on the count of cells in a row, for each directions, which are in the same state as the supplied cell.
      * So each free cell that follow or precedes a row of in state S, has its weight set to the count of marked cells
      * in a row in the same state s, including cell(i,j) in the count
+     * @param directionType
      * @param i
      * @param j
      * @param mod weight modifier used to scale the count applied to extremes cells, use > 0 after marking, < 0 after unmarking
+     * @param playerIndex
+     * @param scanResult
      */
-    private void updateWeightsOnDirection(int directionType, int i, int j, int mod, int playerIndex, ScanResult scanResult ) {
+    protected void updateWeightsOnDirection(int directionType, int i, int j, int mod, int playerIndex, DirectionThreatInfo scanResult ) {
         // first half adjacent direction vectors on clockwise ( starting from 00:00 )
 
         int[]   source = { 0, 0 },
@@ -572,8 +578,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         int[][] direction_offsets = Utils.DIRECTIONS_OFFSETS[directionType];
 
-        // add/remove streak for self
-        addStreakWeight(playerIndex, directionType, i, j, mod);
 
         // update weight on both sides of this direction
         for (int side = 0; side < direction_offsets.length; side++) {
@@ -601,30 +605,21 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
             Vectors.vectorCopy(index, source);
 
-            // start from adjacent
-            Vectors.vectorSum(index, direction);
+            // skip after the streak and start from the adjacent to the streak
+            Vectors.vectorCopy(distance, direction);
+            Vectors.vectorScale(distance, 1+countInDirection);
+            Vectors.vectorSum(index, distance);
 
-            // update streak power on all cells of the streak
-            // each cell in a direction will add the streak count of the opposite direction ( (i, j)-th is included into the count)
-            // the (i,j)-the cell add the same count-1  (because remove it self) since it's already been added on start of this loop
-            addStreakWeight(playerIndex, directionType, i, j, countInOppositeDirection * mod);
-            int left = countInDirection;
-            while( left > 0 && currentBoard.isVectorInBounds(index) ) {
-                addStreakWeight(playerIndex, directionType, index[0], index[1], (1+countInOppositeDirection) * mod);
-                Vectors.vectorSum(index, direction);
-                left--;
-            }
 
-            int modSelector = (isCandidate(scanResult.threat) ? mod : -mod);
+            int modSelector = ( threatDetectionLogic.isCandidate(scanResult) ? mod : -mod);
             // update cell's weight on the both direction end
             // if next is free then update its weight to total
-            left = scanResult.onSideFree[side];
-            // Math.min(1, scanResult.onSideFree[side]);
-            int importance = scanResult.threat.streakCount;
+            int left = scanResult.onSideFree[side];
+            int importance = scanResult.getStreakCount();
             int it = 0;
             while ( left > 0 && currentBoard.isVectorInBounds(index) ) {
                 addWarningWeight(playerIndex, index[0], index[1], (1+countInOppositeDirection + importance) * modSelector);
-                if( importance >= scanResult.threat.streakCount)
+                if( importance >= scanResult.getStreakCount())
                     addUsefulness(playerIndex, directionType, index[0], index[1], (1+countInOppositeDirection) * modSelector );
                 Vectors.vectorSum(index, direction);
                 left--;
@@ -647,70 +642,12 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         initDirty();
 
-        // Link the adjacent cells
-/*
-        UnionFindUndo<MNKCell>[] comboMap = getPlayerCombos(markingPlayer);
-        UnionFindUndo<MNKCell> combosInDirection;
-
-        // first add this cell to all directions combos
-        if( !isCellAddedToCombo[marked.i][marked.j] ) {
-            for ( int directionType : Utils.DIRECTIONS ) {
-                combosInDirection = comboMap[directionType];
-                combosInDirection.addElement(marked);
-            }
-            isCellAddedToCombo[marked.i][marked.j] = true;
-        }*/
-
         // update target's weight on remove
         addDirty(marked.i, marked.j);
 
-        for ( Map.Entry<Integer, List<MNKCell>> adjEntry : currentBoard.adj(marked).entrySet() ) {
-            int directionType = adjEntry.getKey();
-/*
-            combosInDirection = comboMap[directionType];
-
-            for ( MNKCell adjCell : adjEntry.getValue() ) {
-                // if state is same of marked cell, then it has already been added to UnionFind structure for sure
-                if( adjCell.state == markState ) {
-                    combosInDirection.union(marked, adjCell);
-                }
-            }
-*/
-            // evaluate if this streak is a threat
-            ScanResult result = getThreatInDirection(marked, directionType);
-            // Debug.println("scan:" + result);
-            // remove or nullify
-            updateWeightsOnDirection(directionType, marked.i, marked.j,  1, markingPlayer, result );
-            updateThreats(result.threat, directionType);
-        }
+        getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, depth);
 
         finishDirty(true);
-    }
-
-    protected void updateThreats(Threat threat, int directionType) {
-        MNKCell source = threat.move;
-        int playerIndex = Utils.getPlayerIndex(source.state);
-        if( isCandidate(threat) ) {
-            // this is a doable Threat for a player
-
-            Stack<Threat> threatsHistory = bestThreatHistory[playerIndex][directionType];
-            if( !threatsHistory.isEmpty() ) {
-                int compare = compare(threatsHistory.peek(), threat);
-                if( compare < 0) {
-                    threatsHistory.push(threat);
-                }
-                else if( compare == 0 ){
-                   /* boolean isSameSet = bestThreat[playerIndex][directionType] != null
-                            && combosInDirection.inSameSet(marked, bestThreat[playerIndex][directionType].move );
-                    if( !isSameSet ) {
-                        // player have more threats of same weight,
-                    }*/
-                }
-            }
-            else {
-                threatsHistory.push(threat);
-            }
-        }
     }
 
     @Override
@@ -726,262 +663,9 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
 
         addDirty( marked.i, marked.j);
 
-        // Unlink the adjacent cells
-/*
-        UnionFindUndo<MNKCell>[] comboMap = getPlayerCombos(unMarkingPlayer);
-        UnionFindUndo<MNKCell> combosInDirection;
-*/
-        for ( Map.Entry<Integer, List<MNKCell>> adjEntry : currentBoard.adj(marked).entrySet() ) {
-            int directionType = adjEntry.getKey();
-
-//          combosInDirection = comboMap[directionType];
-
-
-            // evaluate if this streak is a threat
-            ScanResult result = getThreatInDirection(marked, directionType);
-            // remove or nullify
-
-            updateWeightsOnDirection(directionType, marked.i, marked.j, -1, unMarkingPlayer, result );
-
-            removeThreatOnUnmark(marked, directionType);
-
-/*
-            for ( MNKCell adjCell : adjEntry.getValue() ) {
-                // if state is same of marked cell, then it has already been added to UnionFind structure for sure
-                if( adjCell.state == markState ) {
-                    combosInDirection.undo();
-                }
-            }
-
-            // and after remove this cell from all directions combos
-            combosInDirection.undo();
- */
-        }
-//        isCellAddedToCombo[marked.i][marked.j] = false;
+        getThreatDetectionLogic().unMark(currentBoard, marked, unMarkingPlayer, depth);
 
         finishDirty(false);
-    }
-
-    protected Threat removeThreatOnUnmark(MNKCell source, int directionType) {
-        int playerIndex = Utils.getPlayerIndex(source.state);
-        Stack<Threat> threatsHistory = bestThreatHistory[playerIndex][directionType];
-        if( !threatsHistory.isEmpty() ) {
-            Threat threat = threatsHistory.peek();
-            if( threat.round > getSimulatedRound() ) // Objects.equals(threat.move, source)
-                return threatsHistory.pop();
-        }
-        return null;
-    }
-
-    /**
-     * Scan threat info on both sides of a specified direction as BFS ( So there isn't a preferred side) <br>
-     * Require O(K) to scan K cells. Can require less than K, if direction is interrupted by opponent cells on both sides
-     * or reach a bound
-     *
-     * @param source
-     * @param directionType
-     * @return
-     */
-    protected ScanResult getThreatInDirection(MNKCell source, int directionType) {
-
-        // if this streak can't increase, then ignore this, otherwise count it as threat
-        int playerIndex = Utils.getPlayerIndex(source.state);
-        final int[][] directionsOffsets = Utils.DIRECTIONS_OFFSETS[directionType];
-        int[] markedCountOnSide = new int[directionsOffsets.length];
-        int[] otherMarkedCountOnSide = new int[directionsOffsets.length];
-        int[] freeCountOnSide = new int[directionsOffsets.length];
-        // if true then iteration should stop on that side
-        final boolean[] canIncreaseStreak = new boolean[2];
-
-        Utils.Weight[][] directionStreakWeights = getStreakWeights(playerIndex, directionType);
-        int[] direction;
-        int[] distance = new int[2];
-
-        // int i = currentBoard.K-1;
-        int[] leftIterations = new int[directionsOffsets.length];
-
-        // indexes for each side
-        final int[][] index = new int[directionsOffsets.length][2];
-
-
-        int availableSlots = 0;
-        int streakCount = 0;
-        if( source.state != MNKCellState.FREE )
-            streakCount++;
-        int totalFreeMovesAvailableInWinRange = 0;
-
-        int iterationsPerSide = (currentBoard.K-1) / directionsOffsets.length;
-        int rest = (currentBoard.K-1) % directionsOffsets.length;
-
-        for (int side = 0; side < directionsOffsets.length; side++) {
-            direction = directionsOffsets[side];
-            index[side][0] = source.i;
-            index[side][1] = source.j;
-
-            // start from next
-            Vectors.vectorSum(index[side], direction);
-            leftIterations[side] = iterationsPerSide;
-
-            canIncreaseStreak[side] = true;
-
-            // distribute rest on other side
-            if( rest > 0) {
-                leftIterations[side]++;
-                rest--;
-            }
-        }
-
-
-        // iterate over the direction and check how many move are left for win
-        // if can't iterate over a specific point because cell's state has beet already set by opponent,
-        // then interrupt and iterate other side
-
-        // iterate over direction, alternating direction sides
-        // to distribute equally marked and free cells on both sides
-        int side = 0;
-
-        while ( (leftIterations[0] > 0 || leftIterations[1] > 0)
-                && (canIncreaseStreak[0] || canIncreaseStreak[1]) ) {
-
-            // Debug.println("dir " + directionType + " side " + side + " " + Arrays.toString(index[side]));
-            direction = directionsOffsets[side];
-            canIncreaseStreak[side] = canIncreaseStreak[side] && currentBoard.isVectorInBounds(index[side]);
-
-            if( leftIterations[side] > 0 && canIncreaseStreak[side] ) {
-                MNKCellState state = currentBoard.cellState( index[side][0], index[side][1] );
-                // Debug.println("is " + state);
-                if (state == source.state) {
-                    // in current streak
-                    if( freeCountOnSide[side] <= 0) {
-                        streakCount++;
-                        markedCountOnSide[side]++;
-
-                        // ignore this iteration in iterations count, as we require the streak count
-                        leftIterations[side]++;
-                    }
-                    // In other streak
-                    // reach a cell owned by same player,
-                    // so this case can happens only after counting free cells
-                    else if( otherMarkedCountOnSide[side] <= 0){
-                        otherMarkedCountOnSide[side] = directionStreakWeights[index[side][0]][index[side][1]].value;
-                        if( leftIterations[side] > otherMarkedCountOnSide[side] ) {
-                            leftIterations[side] -= otherMarkedCountOnSide[side]-1;
-                            // skip the other marked streak
-                            Vectors.vectorScale(Vectors.vectorCopy(distance, direction), otherMarkedCountOnSide[side]-1);
-                            Vectors.vectorSum(index[side], distance);
-
-                            // canIncreaseStreak[side] = false;
-                        }
-                        // else stop if other streak is too large
-                    }
-                    // else iterate on other marked streak, to see what happens next
-                }
-                else if (state == MNKCellState.FREE) {
-                    totalFreeMovesAvailableInWinRange++;
-                    if( otherMarkedCountOnSide[side] <= 0) {
-                        availableSlots++;
-                        freeCountOnSide[side]++;
-                    }
-                }
-                // stop, we met an opponent streak
-                else {
-                    canIncreaseStreak[side] = false;
-                    // ignore this iteration in iterations count
-                    leftIterations[side]++;
-                }
-                // i--;
-                leftIterations[side]--;
-            }
-
-            if( canIncreaseStreak[side] ) {
-                Vectors.vectorSum(index[side], direction);
-            }
-            else {
-                rest += leftIterations[side];
-                leftIterations[side] = 0;
-            }
-
-            // alternate side, but will exit when all sides can't be iterated over again
-            int attempts = directionsOffsets.length;
-            do {
-                side++;
-                if( side >= directionsOffsets.length ) side = 0;
-
-                // if a rest has been left from a last terminated side, then add to this new side
-                if( canIncreaseStreak[side] && rest > 0 ) {
-                    leftIterations[side] += rest;
-                    rest = 0;
-                }
-                attempts--;
-            }
-            while( !( leftIterations[side] > 0 && canIncreaseStreak[side]) && attempts > 0);
-
-        }
-
-        Threat threat = new Threat();
-        threat.streakCount = streakCount;
-        threat.nearAvailableMoves = availableSlots;
-        threat.totalAvailableMovesOnWinRange = totalFreeMovesAvailableInWinRange;
-        threat.round = getSimulatedRound();
-        threat.move = source;
-        threat.otherClosestStreakCount = 0;
-        threat.availableMovesFromOtherClosestStreak = 0;
-
-        int closestSide = -1;
-        if( otherMarkedCountOnSide[0] > 0 && otherMarkedCountOnSide[1] > 0) {
-            closestSide = freeCountOnSide[0] < freeCountOnSide[1]
-                    ? 0
-                    : 1;
-        }
-        else if( otherMarkedCountOnSide[0] > 0 || otherMarkedCountOnSide[1] > 0) {
-            closestSide = otherMarkedCountOnSide[0] > 0
-                    ? 0
-                    : 1;
-        }
-
-        if( closestSide >= 0) {
-            threat.otherClosestStreakCount = otherMarkedCountOnSide[closestSide];
-            threat.availableMovesFromOtherClosestStreak = freeCountOnSide[closestSide];
-        }
-
-        ScanResult result = new ScanResult();
-        result.threat = threat;
-        result.directionType = directionType;
-        result.onSideFree = freeCountOnSide;
-        result.onSideMarked = markedCountOnSide;
-        result.onSideMarkedNear = otherMarkedCountOnSide;
-
-        return result;
-    }
-
-    @Override
-    public int compare(Threat o1, Threat o2) {
-        int comp = 0;
-
-        boolean isCandidate1 = isCandidate(o1);
-        boolean isCandidate2 = isCandidate(o2);
-
-        if( isCandidate1 && isCandidate2 ) {
-            int moveLeftToWin1 = Math.max(0, currentBoard.K - (o1.streakCount + o1.otherClosestStreakCount));
-            int moveLeftToWin2 = Math.max(0, currentBoard.K - (o2.streakCount + o2.otherClosestStreakCount));
-
-            // lesser the moves left are and more dangerous the threat is
-            comp = Integer.compareUnsigned(moveLeftToWin2, moveLeftToWin1);
-        }
-        else if( isCandidate1 || isCandidate2 ) {
-            if( isCandidate1 ) comp = 1;
-            else comp = -1;
-        }
-
-        if( comp == 0 )
-            // check which streak is more important
-            comp = Integer.compareUnsigned(o1.streakCount, o2.streakCount);
-
-        // have multiple streaks with same score, so check which have more chances to fill the streak
-        if( comp == 0 )
-            comp = Integer.compareUnsigned(o1.nearAvailableMoves, o2.nearAvailableMoves);
-
-        return comp;
     }
 
     @Override
@@ -1082,16 +766,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
         usefulness[playerIndex][directionType][ i ][ j ].value = value;
     }
 
-    public Utils.Weight[][] getStreakWeights(int playerIndex, int directionType ) {
-        return streakWeights[playerIndex][directionType];
-    }
-
-    public void addStreakWeight(int playerIndex, int directionType, int i, int j, int value ) {
-        streakWeights[playerIndex][directionType][i][j].value += value;
-    }
-    public void setStreakWeight(int playerIndex, int directionType, int i, int j, int value ) {
-        streakWeights[playerIndex][directionType][i][j].value = value;
-    }
 
     @Override
     public String boardToString() {
@@ -1101,7 +775,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
                 s += "Streaks for p" + (p + 1) + ":\n";
                 for (int i = 0; i < currentBoard.B.length; i++) {
                     for (int directionType : Utils.DIRECTIONS) {
-                        s += boardToString(null, getStreakWeights(p, directionType)[i], currentBoard.K) + "\t\t\t";
+                        s += boardToString(null, (threatDetectionLogic).getStreakWeights(p, directionType)[i], currentBoard.K) + "\t\t\t";
                     }
                     s += "\n";
                 }
@@ -1167,95 +841,5 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable,
     @Override
     public String playerName() {
         return "MyPlayer";
-    }
-}
-
-class Threat {
-
-    // round of evaluation of this threat
-    int round;
-
-    // current streak at this round
-    int streakCount;
-
-    // amount of slots left available adjacent to the streak
-    int nearAvailableMoves;
-
-    // amount of slot left in winnable range that are available, this consider also near streaks
-    int totalAvailableMovesOnWinRange;
-
-    // closest streak count near available moves left, that can be reached through free cells
-    int otherClosestStreakCount;
-
-    // amount of slots left to link the streak from current streak to the other
-    int availableMovesFromOtherClosestStreak;
-
-    // move reference of the streak
-    MNKCell move;
-
-    @Override
-    public String toString() {
-        return "Threat{" +
-                "round=" + round +
-                ", streakCount=" + streakCount +
-                ", freeMovesLeftToCompleteStreak=" + totalAvailableMovesOnWinRange +
-                ", nearAvailableMoves=" + nearAvailableMoves +
-                ", otherClosestStreakCount=" + otherClosestStreakCount +
-                ", availableMovesFromOtherClosestStreak=" + availableMovesFromOtherClosestStreak +
-                ", move=" + move +
-                '}';
-    }
-}
-
-class ScanResult {
-    Threat threat;
-    int directionType;
-
-    // marked count on each side
-    int[] onSideMarked;
-    // free count on each side, following the marked ones
-    int[] onSideFree;
-    // marked count on each side, following the free ones ( so this is the count of others streaks near the move reference)
-    int[] onSideMarkedNear;
-
-
-    public int[] getStartMarkedIndex() {
-        int[] index = new int[]{ threat.move.i, threat.move.j };
-        return index;
-    }
-
-    public int[] getStartFreeIndex(int side) {
-        int[] index = getStartMarkedIndex();
-        final int[] direction = Utils.DIRECTIONS_OFFSETS[directionType][side];
-        final int[] distance = new int[direction.length];
-
-        Vectors.vectorCopy(distance, direction);
-        Vectors.vectorScale(distance, onSideMarked[side]);
-        Vectors.vectorSum(index, distance);
-
-        return index;
-    }
-
-    public int[] getStarOtherMarked(int side) {
-        int[] index = getStartMarkedIndex();
-        final int[] direction = Utils.DIRECTIONS_OFFSETS[directionType][side];
-        final int[] distance = new int[direction.length];
-
-        Vectors.vectorCopy(distance, direction);
-        Vectors.vectorScale(distance,  onSideMarked[side] + onSideFree[side]);
-        Vectors.vectorSum(index, distance);
-
-        return index;
-    }
-
-    @Override
-    public String toString() {
-        return "ScanResult{" +
-                "directionType=" + directionType +
-                ", onSideMarked=" + Arrays.toString(onSideMarked) +
-                ", onSideFree=" + Arrays.toString(onSideFree) +
-                ", onSideMarkedNear=" + Arrays.toString(onSideMarkedNear) +
-                ", threat=" + threat +
-                '}';
     }
 }
