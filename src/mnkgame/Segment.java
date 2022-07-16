@@ -114,20 +114,6 @@ public class Segment {
      */
     public void grow(int side) {
         if( side == 0) {
-            if( next != null ) {
-                next.indexStart++;
-                indexEnd++;
-                if (next.length() < 0) {
-                    // unlink and link to the next's next
-                    Segment old = next;
-                    if (old.next != null)
-                        old.next.prev = this;
-                    next = old.next;
-                    old.unLink();
-                }
-            }
-        }
-        else {
             if( prev != null ) {
                 prev.indexEnd--;
                 indexStart--;
@@ -138,6 +124,20 @@ public class Segment {
                         old.prev.next = this;
                     }
                     prev = old.prev;
+                    old.unLink();
+                }
+            }
+        }
+        else {
+            if( next != null ) {
+                next.indexStart++;
+                indexEnd++;
+                if (next.length() < 0) {
+                    // unlink and link to the next's next
+                    Segment old = next;
+                    if (old.next != null)
+                        old.next.prev = this;
+                    next = old.next;
                     old.unLink();
                 }
             }
