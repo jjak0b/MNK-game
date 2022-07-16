@@ -10,6 +10,8 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
     public RowOfBlocks[][] blocksOnDirection;
     // these are buckets of a kind of modified Priority(Heap / queues) Stack
     public PriorityThreatsTracker[][] playerThreatsOnDirection;
+    // coordinate Map from board to row indexes for direction
+    public int[][][][] coordinatesMap;
 
     public RowOfBlocks[] getRowsOfBlocksOnDirection( int directionType) {
         return blocksOnDirection[directionType];
@@ -50,6 +52,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
 
         playerThreatsOnDirection = new PriorityThreatsTracker[2][Utils.DIRECTIONS.length];
 
+        coordinatesMap = new int[Utils.DIRECTIONS.length][M][N][ 2 ];
         blocksOnDirection = new RowOfBlocks[Utils.DIRECTIONS.length][];
         int rowsCount = 0;
         int columnsCount = 0;
@@ -102,6 +105,66 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
                     break;
             }
 
+            int i = 0, j = 0;
+            // init coordinates mapping
+            switch(directionType) {
+                case Utils.DIRECTION_TYPE_HORIZONTAL:
+                    for ( i = 0; i < M; i++) {
+                        for ( j = 0; j < N; j++) {
+                            coordinatesMap[directionType][i][j][0] = i;
+                            coordinatesMap[directionType][i][j][1] = j;
+                        }
+                    }
+                    break;
+                case Utils.DIRECTION_TYPE_VERTICAL:
+                    for ( j = 0; j < N; j++) {
+                        for ( i = 0; i < M; i++) {
+                            coordinatesMap[directionType][i][j][0] = j;
+                            coordinatesMap[directionType][i][j][1] = i;
+                        }
+                    }
+                    break;
+                case Utils.DIRECTION_TYPE_OBLIQUE_LR:
+                    i = 0; j = 0;
+                    for (; i < M; i++) {
+                        for (int k = 0; i - k >= 0 && j + k < N; k++) {
+                            int r = i - k;
+                            int c = j + k;
+                            coordinatesMap[directionType][r][c][0] = i + j;
+                            coordinatesMap[directionType][r][c][1] = k;
+                        }
+                    }
+                    i = M-1; j = 1;
+                    for(; j < N; j++) {
+                        for (int k = 0; i - k >= 0 && j + k < N; k++) {
+                            int r = i - k;
+                            int c = j + k;
+                            coordinatesMap[directionType][r][c][0] = i + j;
+                            coordinatesMap[directionType][r][c][1] = k;
+                        }
+                    }
+                    break;
+                case Utils.DIRECTION_TYPE_OBLIQUE_RL:
+                    i = 0; j = N-1;
+                    for(; j >= 0; j--) {
+                        for (int k = 0; i + k < M && j + k < N; k++) {
+                            int r = i + k;
+                            int c = j + k;
+                            coordinatesMap[directionType][r][c][0] = i + (N -1 - j);
+                            coordinatesMap[directionType][r][c][1] = k;
+                        }
+                    }
+                    i = 1; j = 0;
+                    for(; i < M; i++) {
+                        for (int k = 0; i + k < M && j + k < N; k++) {
+                            int r = i + k;
+                            int c = j + k;
+                            coordinatesMap[directionType][r][c][0] = i + (N -1 - j);
+                            coordinatesMap[directionType][r][c][1] = k;
+                        }
+                    }
+                    break;
+            }
         }
     }
 
@@ -514,26 +577,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
 
     public int[] matrixCoordsToDirectionTypeCoords(int i, int j, int directionType) {
         final int[] coordinates = {0, 0};
-        switch (directionType){
-            case Utils.DIRECTION_TYPE_HORIZONTAL:
-                coordinates[0] = i;
-                coordinates[1] = j;
-                break;
-            case Utils.DIRECTION_TYPE_VERTICAL:
-                coordinates[0] = j;
-                coordinates[1] = i;
-                break;
-            case Utils.DIRECTION_TYPE_OBLIQUE_LR:
-                // conceptual note: "0" index is in (i, 0) and (M-1, j)
-                coordinates[0] =  i + j;
-                coordinates[1] =  Math.min(i, (N-1) - j);
-                break;
-            case Utils.DIRECTION_TYPE_OBLIQUE_RL:
-                // conceptual note: "0" index is in (i, N-1) and (0, j)
-                coordinates[0] = i + ((N-1) - j);
-                coordinates[1] = Math.min(i, j);
-                break;
-        }
+        Vectors.vectorCopy(coordinates, coordinatesMap[ directionType ][ i ][ j ] );
         return coordinates;
     }
 
