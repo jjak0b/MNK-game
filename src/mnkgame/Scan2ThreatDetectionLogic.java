@@ -335,6 +335,9 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
                 streakBlock = ((Streak) lower);
             // end merge operation
 
+            if( isMark ) {
+                threatsToAdd[playerIndex].add(new ThreatT( (ThreatT)streakBlock ));
+            }
         }
         // (un)marked on the edge -> join edge
         else if( shouldMergeRight ){
