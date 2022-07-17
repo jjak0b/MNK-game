@@ -117,14 +117,15 @@ public class Segment {
             if( prev != null ) {
                 prev.indexEnd--;
                 indexStart--;
+                // Unlink and remove node
                 if (prev.length() < 0) {
-                    // unlink and link to the prev0s prev
                     Segment old = prev;
-                    if (old.prev != null) {
-                        old.prev.next = this;
-                    }
-                    prev = old.prev;
+                    Segment newPrev = (old.prev != null) ? old.prev : null;
+
+                    // detach and dispose segment
                     old.unLink();
+                    // link to the old's prev
+                    insertPrev(newPrev);
                 }
             }
         }
@@ -132,13 +133,15 @@ public class Segment {
             if( next != null ) {
                 next.indexStart++;
                 indexEnd++;
+                // Unlink and remove node
                 if (next.length() < 0) {
-                    // unlink and link to the next's next
                     Segment old = next;
-                    if (old.next != null)
-                        old.next.prev = this;
-                    next = old.next;
+                    Segment newNext = (old.next != null) ? old.next : null;
+
+                    // detach and dispose segment
                     old.unLink();
+                    // link to the old's next
+                    insertNext(newNext);
                 }
             }
         }

@@ -326,9 +326,9 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             }
 
             // start merge operation
-            lower.grow(1);
-            if( lowerOrEq.length() < 0 )
+            if( lowerOrEq.length() < 1 )
                 blocks.remove(lowerOrEq);
+            lower.grow(1);
             lower.updateAdjacent();
 
             if(isMark) // the streak must be added / updated
@@ -345,9 +345,9 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             }
 
             // start merge operation
-            higher.grow(0);
-            if( lowerOrEq.length() < 0 )
+            if( lowerOrEq.length() < 1 )
                 blocks.remove(lowerOrEq);
+            higher.grow(0);
             higher.updateAdjacent();
 
             // the streak must be added / updated
