@@ -73,9 +73,6 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
                     break;
             }
             blocksOnDirection[ directionType ] = new RowOfBlocks[rowsCount];
-            for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
-                playerThreatsOnDirection[playerIndex][directionType] = new PriorityThreatsTracker(rowsCount, this);
-            }
 
             // init each row as a "big" long free block
             switch (directionType) {
@@ -103,6 +100,10 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
                         blocksOnDirection[ directionType ][i] = new RowOfBlocks(segmentsComparator, columnsCount);
                     }
                     break;
+            }
+
+            for (int playerIndex = 0; playerIndex < 2; playerIndex++) {
+                playerThreatsOnDirection[playerIndex][directionType] = new PriorityThreatsTracker(blocksOnDirection[ directionType ], this);
             }
 
             int i = 0, j = 0;
@@ -835,11 +836,15 @@ class PriorityThreatsTracker {
     protected PriorityQueue<ThreatT>[] rowsOFPQ;
     protected Comparator<ThreatT> threatTComparator;
 
-    public PriorityThreatsTracker(int rowCount, Comparator<ThreatT> threatTComparator) {
+    public PriorityThreatsTracker(RowOfBlocks[] rowsReference, Comparator<ThreatT> threatTComparator) {
+        int rowCount = rowsReference.length;
         this.threatTComparator = threatTComparator;
         this.rowsOFPQ = new PriorityQueue[rowCount];
+        // On worst case the amount of space occupied by the player in a row is hals of row size
+        // and that happens when all columns are owned in alternate way by player, opponent, player, opponent, etc ...
+        // in this case there can be at most (rowSize + 1/2 columns owned by each player per row
         for (int i = 0; i < rowCount; i++) {
-            this.rowsOFPQ[i] = new PriorityQueue<>(rowCount, threatTComparator);
+            this.rowsOFPQ[i] = new PriorityQueue<>((1 + rowsReference[i].rowSize) / 2 , threatTComparator);
         }
         this.historyOnRow = new Stack<>();
     }
@@ -865,16 +870,16 @@ class PriorityThreatsTracker {
 
         Stack<HistoryItem> history = historyOnRow;
         PriorityQueue<ThreatT> pq = rowsOFPQ[row];
-        boolean result = true;
+        boolean resultR = true, resultA = true;
 
         HistoryItem item = new HistoryItem();
         item.added = threatsToAdd;
         item.removed = threatsToRemove;
 
         if(item.removed != null && item.removed.length > 0 )
-            result = result && pq.removeAll(Set.of(item.removed));
+            resultR = pq.removeAll(Set.of(item.removed));
         if(item.added != null && item.added.length > 0 )
-            result = result && pq.addAll(Set.of(item.added));
+            resultA = pq.addAll(Set.of(item.added));
 
         if( history.isEmpty() ) {
             item.oldBestRow = -1;
@@ -889,7 +894,7 @@ class PriorityThreatsTracker {
 
         history.push(item);
 
-        return result;
+        return resultR && resultA;
     }
 
     /**
@@ -904,16 +909,23 @@ class PriorityThreatsTracker {
 
         HistoryItem item = history.pop();
 
-        boolean result = true;
+        boolean resultR = true, resultA = true;
 
         if(item.added != null && item.added.length > 0 )
-            result = result && pq.removeAll(Set.of(item.added));
+            resultR = pq.removeAll(Set.of(item.added));
         if(item.removed != null && item.removed.length > 0 )
-            result = result && pq.addAll(Set.of(item.removed));
+            resultA = pq.addAll(Set.of(item.removed));
 
-        return result;
+        return resultR && resultA;
     }
 
+    @Override
+    public String toString() {
+        return "PriorityThreatsTracker{" +
+                "historyOnRow=" + historyOnRow +
+                ",\n rowsOFPQ=" + Arrays.toString(rowsOFPQ) +
+                '}';
+    }
 }
 
 public class RowOfBlocks extends TreeSet<Segment> {
