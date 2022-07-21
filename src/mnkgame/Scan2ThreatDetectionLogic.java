@@ -441,35 +441,11 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         if( !(threatCandidate instanceof ThreatT )) return false;
         ThreatT threat = (ThreatT) threatCandidate;
 
-        int streakCount = threat.getStreakCount();
-        int free = 0, other = 0, otherFree = 0;
-        int freeOnTotal = 0;
-
-        for (int side = 0; side < 2; side++) {
-            free = threat.getFreeOnSide(side);
-            freeOnTotal += free;
-
-            // gradually check if can win due to a side properties[breadth], increasing by breadth each check
-            for (int breadth = 1; breadth <= 3; breadth++) {
-                switch (breadth){
-                    case 1: // win range is <= breadth 1
-                        if( (streakCount + free >= K || streakCount + freeOnTotal >= K) )
-                            return true;
-                        break;
-                    case 2: // win range is <= breadth 2
-                        other = threat.getOtherMarkedOnSide(side);
-                        if( (streakCount + free + other >= K) )
-                            return true;
-                        break;
-                    case 3: // win range is <= breadth 3
-                        otherFree = threat.getOtherFreeOnSide(side);
-                        if( (streakCount + free + other + otherFree >= K) )
-                            return true;
-                        break;
-                }
-            }
-        }
-        return false;
+        /**
+         * {@link #updateBlockAndAdjacentOnDirection(int, int, int, int, MNKCellState, boolean)}  }
+         * {@link ThreatT#updateScore()}  }
+         */
+        return threat.getScore() > 0;
     }
 
     public int[] matrixCoordsToDirectionTypeCoords(int i, int j, int directionType) {
