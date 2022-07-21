@@ -25,7 +25,7 @@ public class Segment {
     /**
      * Merge this and the provided segment.
      * The provided segment will be unlinked after this operation.
-     * @PostCondition on return. the caller should call {@link #updateAdjacent()} to make adjacent aware of this change
+     * @PostCondition on return. the caller should call {@link #updateAdjacent(int)} to make adjacent aware of this change
      * @param to
      */
     public void merge(Segment to) {
@@ -49,7 +49,7 @@ public class Segment {
     }
 
     /**
-     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment)} for this and the item
+     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment, int)} for this and the item
      * @param item
      */
     public void insertPrev(Segment item) {
@@ -67,7 +67,7 @@ public class Segment {
     }
 
     /**
-     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment)} for this and the item
+     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment, int)} for this and the item
      * @param item
      */
     public void insertNext(Segment item) {
@@ -87,7 +87,7 @@ public class Segment {
      * newPrev is linked before this segment.
      * newNext is linked after this segment.
      * The coordinates of this segment are updated to (newPrev.indexEnd+1, newNext.indexStart-1)
-     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment)} for this, newPrev, and newNext
+     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment, int)} for this, newPrev, and newNext
      * @param newPrev
      * @param newNext
      */
@@ -99,13 +99,18 @@ public class Segment {
     }
 
     /**
-     * Call the {@link #onLinkUpdate(Segment)} callback on adjacent
+     * Call the {@link #onLinkUpdate(Segment, int)} callback on adjacent of both sides with adj=this and breadth params
+     * @param breadth
      */
+    public void updateAdjacent( int breadth ) {
+        if (prev != null)
+            prev.onLinkUpdate(this, breadth);
+        if (next != null)
+            next.onLinkUpdate(this, breadth);
+    }
+
     public void updateAdjacent() {
-        if( prev != null )
-            prev.onLinkUpdate( this );
-        if( next != null )
-            next.onLinkUpdate( this );
+        updateAdjacent(0);
     }
 
     /**
@@ -148,10 +153,25 @@ public class Segment {
     }
 
     /**
-     * Callback called when an adjacent link ot this segment ahs been updated for some reason
-     * @param adj
+     * Callback called when an adjacent link ot this segment has been updated for some reason
+     * and recursively call {@link #onLinkUpdate(Segment, int)} breadth times
+     * on same link direction update from which this method has been called for
+     *
+     * @param adj adjacent segment that trigger this method
+     * @param breadth count of nodes to link
      */
-    public void onLinkUpdate(Segment adj ) { }
+    public void onLinkUpdate(Segment adj, int breadth ) {
+        if( breadth < 0 ) return;
+
+        if( adj == next ) {
+            if( prev != null )
+                prev.onLinkUpdate(this, breadth-1);
+        }
+        else if( adj == prev ) {
+            if( next != null )
+                next.onLinkUpdate(this, breadth-1);
+        }
+    }
 
     public void unLink() {
         if( prev != null ) {

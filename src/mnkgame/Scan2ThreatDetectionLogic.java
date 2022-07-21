@@ -14,6 +14,11 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
     // coordinate Map from board to row indexes for direction
     public int[][][][] coordinatesMap;
 
+    // pool of threats to remove per player
+    protected List<ThreatT>[] threatsToRemove;
+    // pool of threats to add per player
+    protected List<ThreatT>[] threatsToAdd;
+
     public RowOfBlocks[] getRowsOfBlocksOnDirection( int directionType) {
         return blocksOnDirection[directionType];
     }
@@ -49,6 +54,12 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             }
         };
 
+        // On worst case a free block can be split to 3 blocks after a mark/unmark -> so 1 to remove and 3 to add or 3 to remove and 1 to add
+        // but near blocks have to update their score, so needs to update their positions on priority queues
+        // each block can be near in sequence to a "free" block, "another marked" block, and a "other free" block -> so up to 2 threats per side must be updated
+        final int poolSize = (2*2) + 3;
+        threatsToRemove = new List[]{ new ArrayList<ThreatT>( poolSize ), new ArrayList<ThreatT>( poolSize) };
+        threatsToAdd = new List[]{ new ArrayList<ThreatT>( poolSize ), new ArrayList<ThreatT>( poolSize) };
 
         bonusScoreOnMovesLeft = new int[]{ 0, K*K*K, K*K };
         playerThreatsOnDirection = new PriorityThreatsTracker[2][Utils.DIRECTIONS.length];
@@ -172,44 +183,28 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
 
     @Override
     public void mark(MNKBoard tree, MNKCell marked, int markingPlayer, int depth) {
+        int playerIndex = getPlayerIndex(marked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
-            updateBlockAndAdjacentOnDirection(markingPlayer,  marked.i, marked.j, directionType, marked.state, true );
+            updateBlockAndAdjacentOnDirection(playerIndex, marked.i, marked.j, directionType, marked.state, true );
         }
     }
 
     @Override
     public void unMark(MNKBoard tree, MNKCell oldMarked, int unMarkingPlayer, int depth) {
+        int playerIndex = getPlayerIndex(oldMarked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
-            updateBlockAndAdjacentOnDirection(unMarkingPlayer, oldMarked.i, oldMarked.j, directionType, MNKCellState.FREE, false );
-        }
-    }
-
-    protected void fillBlocksInSequence(Segment[] highersOrLowers, RowOfBlocks blocks, boolean isHigher) {
-        for (int d = 1; d < highersOrLowers.length; d++) {
-            if( highersOrLowers[d-1] != null ){
-                if( highersOrLowers[d] == null )
-                    highersOrLowers[d] = isHigher ? blocks.higher(highersOrLowers[d-1]) : blocks.lower(highersOrLowers[d-1]);
-            }
-            else {
-                return;
-            }
+            updateBlockAndAdjacentOnDirection(playerIndex, oldMarked.i, oldMarked.j, directionType, MNKCellState.FREE, false );
         }
     }
 
     public void updateBlockAndAdjacentOnDirection( int playerIndex, int i, int j, int directionType, MNKCellState color, boolean isMark) {
-        int opponentIndex = 1-playerIndex;
-        // HashMap<Segment, Segment> lowerThan = new HashMap<>();
-        // HashMap<Segment, Segment> higherThan = new HashMap<>();
-
 
         int[] coords = matrixCoordsToDirectionTypeCoords(i, j, directionType);
         int row = coords[0]; int column = coords[1];
 
-        List<ThreatT>[] threatsToRemove = new List[2];
-        List<ThreatT>[] threatsToAdd = new List[2];
         for (int p = 0; p < 2; p++) {
-            threatsToRemove[p] = new ArrayList<>(2);
-            threatsToAdd[p] = new ArrayList<>(2);
+            threatsToRemove[p].clear();
+            threatsToAdd[p].clear();
         }
 
         RowOfBlocks blocks = blocksOnDirection[directionType][row];
@@ -219,15 +214,11 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         // relative to marked block
         Segment[] lowers = new Segment[3];
         Segment[] highers = new Segment[3];
-        // relative to untouched block but needs to be updated
-        Segment[] lowersFromTop = new Segment[3];
-        Segment[] highersFromBottom = new Segment[3];
 
         // which side must be merged
         boolean shouldMergeLeft = false;
         boolean shouldMergeRight = false;
 
-        Segment[] opponentOrPlayerBlockToUpdate = new Segment[2];
         Segment myCellBlock;
         Streak streakBlock = null;
 
@@ -245,7 +236,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             if( leftPartition.length() < 0 ) {
                 lowers[0] = lowerOrEq.prev; // blocks.lower(myCellBlock);
                 lower = lowers[0];
-                shouldMergeLeft = lower instanceof ThreatT && ((Streak) lower).color == color;
+                shouldMergeLeft = lower instanceof ThreatT && ((ThreatT) lower).getColor() == color;
             }
             else {
                 lowers[0] = leftPartition;
@@ -254,7 +245,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             if( rightPartition.length() < 0 ) {
                 highers[0] = lowerOrEq.next; // blocks.higher(myCellBlock);
                 higher = highers[0];
-                shouldMergeRight = higher instanceof ThreatT && ((Streak) higher).color == color;
+                shouldMergeRight = higher instanceof ThreatT && ((ThreatT) higher).getColor() == color;
             }
             else {
                 highers[0] = rightPartition;
@@ -279,7 +270,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
                 lowers[0] = blocks.lower(myCellBlock);
                 lower = lowers[0];
 
-                shouldMergeLeft = lower != null && !(lower instanceof Streak);
+                shouldMergeLeft = lower instanceof FreeSegment;
             }
             else {
                 lowers[0] = leftPartition;
@@ -288,7 +279,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             if( rightPartition.length() < 0 ) {
                 highers[0] = blocks.higher(myCellBlock);
                 higher = highers[0];
-                shouldMergeRight = higher != null && !(higher instanceof Streak);
+                shouldMergeRight = higher instanceof FreeSegment;
             }
             else {
                 highers[0] = rightPartition;
@@ -324,7 +315,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         else if( shouldMergeLeft ) {
             // old streak must be removed
             if( isMark ) {
-                threatsToRemove[playerIndex].add(new ThreatT(((Streak) lower).clone()));
+                threatsToRemove[playerIndex].add(new ThreatT( (ThreatT) lower));
             }
 
             // start merge operation
@@ -346,7 +337,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
 
             // old streak must be removed
             if( isMark ) {
-                threatsToRemove[playerIndex].add(new ThreatT(((Streak) higher).clone()));
+                threatsToRemove[playerIndex].add(new ThreatT( (ThreatT) higher) );
             }
 
             // start merge operation
@@ -388,10 +379,6 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             // case Threat -> will update the threat
             // case free -> will update adjacent threat, than will tell adjacent to update their respective sides
             myCellBlock.updateAdjacent();
-            if( lowerOrEq.prev != null )
-                lowerOrEq.prev.updateAdjacent();
-            if( lowerOrEq.next != null )
-                lowerOrEq.next.updateAdjacent();
 
             blocks.add(myCellBlock);
 
@@ -411,48 +398,18 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         if( highers[0] != null && highers[1] == null ) highers[1] = blocks.higher(highers[0]);
 
 
-        // Now update the threats, by replacing old threats
-        if(isMark) {
-            if( !shouldMergeLeft || !shouldMergeRight ) {
-                Segment[] sequenceCache;
-                for (int side = 0; side < 2; side++) {
-                    sequenceCache = side == 0 ? highersFromBottom : lowersFromTop;
-
-                    if (opponentOrPlayerBlockToUpdate[side] instanceof ThreatT) {
-
-                        int targetPlayer = ((ThreatT) opponentOrPlayerBlockToUpdate[side]).color == color ? playerIndex : opponentIndex;
-                        // add a copy of the removed item
-                        threatsToRemove[targetPlayer].add(new ThreatT((ThreatT) opponentOrPlayerBlockToUpdate[side]));
-
-                        // this will update the reference in RowOfBlocks because opponentOrPlayerBlockToUpdate[side] is a reference
-                        updateThreatOnSide((ThreatT) opponentOrPlayerBlockToUpdate[side], blocks, sequenceCache, 1 - side);
-
-                        // add a copy of the new updated reference
-                        threatsToAdd[targetPlayer].add(new ThreatT((ThreatT) opponentOrPlayerBlockToUpdate[side]));
-                    }
-                }
-            }
-            playerThreatsOnDirection[playerIndex][directionType].push(
-                    row,
-                    threatsToRemove[playerIndex].toArray(new ThreatT[0]),
-                    threatsToAdd[playerIndex].toArray(new ThreatT[0])
-            );
-
-            if( (opponentOrPlayerBlockToUpdate[0] instanceof ThreatT && ((ThreatT) opponentOrPlayerBlockToUpdate[0]).color != color)
-                || (opponentOrPlayerBlockToUpdate[1] instanceof ThreatT  && ((ThreatT) opponentOrPlayerBlockToUpdate[1]).color != color) ) {
-                playerThreatsOnDirection[opponentIndex][directionType].push(
+        for (int p = 0; p < 2; p++) {
+            // Now update the threats, by replacing old threats
+            if(isMark) {
+                // Threats to add/remove (includes update) by current player
+                playerThreatsOnDirection[p][directionType].push(
                         row,
-                        threatsToRemove[opponentIndex].toArray(new ThreatT[0]),
-                        threatsToAdd[opponentIndex].toArray(new ThreatT[0])
+                        !threatsToRemove[p].isEmpty() ? threatsToRemove[p].toArray(new ThreatT[0]) : null,
+                        !threatsToAdd[p].isEmpty() ? threatsToAdd[p].toArray(new ThreatT[0]) : null
                 );
             }
-        }
-        else {
-            playerThreatsOnDirection[playerIndex][directionType].pop(row);
-
-            if( (opponentOrPlayerBlockToUpdate[0] instanceof ThreatT && ((ThreatT) opponentOrPlayerBlockToUpdate[0]).color != color)
-                || (opponentOrPlayerBlockToUpdate[1] instanceof ThreatT  && ((ThreatT) opponentOrPlayerBlockToUpdate[1]).color != color) ) {
-                playerThreatsOnDirection[opponentIndex][directionType].pop(row);
+            else {
+                playerThreatsOnDirection[p][directionType].pop(row);
             }
         }
 
@@ -460,82 +417,17 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
     }
 
     /**
-     * Update threat's data for both sides
-     * @param streak segment of a streak
-     * @param lowers buffer of 3 segments in lower positions than streak
-     * @param highers buffer of 3 segments in higher positions than streak
-     * @return
+     * @PreCondition oldThreat must have same color
+     * @PostCondition add the old thread to the removes pool and the new threat to the adds pool of respective player owner
+     * @param oldThreat
+     * @param newThreat
      */
-    protected ThreatT createThreat(Streak streak, Segment[] lowers, Segment[] highers ) {
-        ThreatT threat = new ThreatT(streak);
-        updateThreat(threat, lowers, highers);
-        return threat;
-    }
+    public void addToUpdatePool(ThreatT oldThreat, ThreatT newThreat) {
+        if( oldThreat.getColor() != newThreat.getColor() ) return;
 
-    /**
-     * Update threat's data for a specified side
-     *
-     * @param threat the block reference to start from
-     * @param blocks structure to get the higher or lower if not defined in sequenceCache
-     * @param sequenceCache buffer of next 3 segments in sequence, other wise
-     * @param side 0 (lower) or 1 (higher)
-     */
-    protected void updateThreatOnSide(ThreatT threat, RowOfBlocks blocks, Segment[] sequenceCache, int side) {
-        Segment block = threat;
-        boolean shouldReset = false;
-        for (int d = 0; d < 3; d++) {
-            if( shouldReset )
-                block = null;
-            else if (sequenceCache != null && sequenceCache[d] != null) {
-                block = sequenceCache[d];
-            }
-            else {
-                block = side == 0 ? blocks.lower(block) : blocks.higher(block);
-                if (sequenceCache != null)
-                    sequenceCache[d] = block;
-            }
-
-            switch (d) {
-                case 0:
-                    shouldReset = shouldReset || !( block != null && !(block instanceof Streak) );
-                    threat.adjacentFree[side] = shouldReset ? 0 : 1 + block.length();
-                    break;
-                case 1:
-                    shouldReset = shouldReset || !( block != null && block instanceof Streak && ((Streak)block).color == threat.color );
-                    threat.otherMarkedNearFree[side] = shouldReset ? 0 : 1 + block.length();
-                    break;
-                case 2:
-                    shouldReset = shouldReset || !( block != null && !(block instanceof Streak));
-                    threat.freeNearOtherMarked[side] = shouldReset ? 0 : 1 + block.length();
-                    break;
-            }
-        }
-    }
-
-    protected void updateThreat(ThreatT threat, RowOfBlocks blocks, Segment[] lowers, Segment[] highers ) {
-        for (int side = 0; side < 2; side++) {
-            if( side == 0 )
-                updateThreatOnSide(threat, blocks, lowers, side);
-            else
-                updateThreatOnSide(threat, blocks, highers, side);
-        }
-    }
-
-    protected void updateThreat(ThreatT threat, Segment[] lowers, Segment[] highers) {
-        for (int side = 0; side < 2; side++) {
-            Segment[] base = side == 0 ? lowers : highers;
-            if( base == null ) continue;
-
-            if( base[0] != null && !(base[0] instanceof Streak) ) {
-                threat.adjacentFree[0] = 1 + base[0].length();
-                if( base[1] != null && base[1] instanceof Streak && ((Streak) base[1]).color == threat.color ) {
-                    threat.otherMarkedNearFree[0] = 1 + base[1].length();
-                    if( base[2] != null && !(base[2] instanceof Streak) ) {
-                        threat.freeNearOtherMarked[0] = 1 + base[2].length();
-                    }
-                }
-            }
-        }
+        int ownerPlayerIndex = getPlayerIndex(oldThreat.getColor());
+        threatsToRemove[ownerPlayerIndex].add(oldThreat);
+        threatsToAdd[ownerPlayerIndex].add(newThreat);
     }
 
     /**
@@ -586,6 +478,14 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         return coordinates;
     }
 
+    /**
+     * Assign and Index for player based on color
+     * @param color
+     * @return
+     */
+    protected int getPlayerIndex(MNKCellState color) {
+        return Utils.getPlayerIndex(color);
+    }
 
     /**
      * compare 2 threats and return the compare result of {@link Comparator#compare(Object, Object)}
@@ -628,6 +528,10 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
         return score;
     }
 
+    /**
+     * Update Threat score based on cached scan values after a {@link #updateAdjacent()} operation
+     * @cost.time O(2)
+     */
     void updateScore() {
         int streakCount = getStreakCount();
         int free = 0, other = 0, otherFree = 0;
@@ -731,11 +635,14 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
     }
     /**
      * Update data from adjacent link
-     * @cost.time {@link #updateDataOnSide }
+     * @PostCondition call {@link #addToUpdatePool(ThreatT, ThreatT)} passing self clones as parameters before and after update
+     * @cost.time {@link #updateAdjacentDataOnSide }
      * @param adj
      */
     @Override
-    public void onLinkUpdate(Segment adj) {
+    public void onLinkUpdate(Segment adj, int breadth) {
+        if( breadth < 0) return;
+
         int side = -1;
 
         if( adj == prev ){
@@ -745,23 +652,31 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
             side = 1; // right
         }
 
+        ThreatT oldSegment = new ThreatT(this);
         // iterate over side and update data
         if( side >= 0)
-            updateDataOnSide(side);
+            updateAdjacentDataOnSide(side);
         updateScore();
 
-        // TODO: call recursive must on limit depth = max needed breadth
-        if( side == 1 && prev != null ) prev.onLinkUpdate(this);
-        else if( side == 0 && next != null ) next.onLinkUpdate(this);
+        addToUpdatePool(oldSegment, new ThreatT(this) );
+
+        super.onLinkUpdate(adj, breadth);
     }
 
+    /**
+     * update self data and score and call {@link super#updateAdjacent(int)}
+     */
     @Override
     public void updateAdjacent() {
+        ThreatT oldSegment = new ThreatT(this);
+
         for (int side = 0; side < 2; side++)
-            updateDataOnSide(side);
+            updateAdjacentDataOnSide(side);
         updateScore();
 
-        super.updateAdjacent();
+        addToUpdatePool(oldSegment, new ThreatT(this) );
+
+        super.updateAdjacent(3);
     }
 
     /**
@@ -769,8 +684,8 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
      * @cost.time O(3)
      * @param side 0 for prev, else for next
      */
-    protected void updateDataOnSide( int side) {
-
+    protected void updateAdjacentDataOnSide(int side) {
+        ThreatT oldTHis = new ThreatT(this);
         Segment it = this;
         for (int i = 0; i < 3; i++) {
             if( it == null ) break;
@@ -956,8 +871,8 @@ public class PriorityThreatsTracker {
         boolean resultR = true, resultA = true;
 
         HistoryItem item = new HistoryItem();
-        item.added = threatsToAdd;
-        item.removed = threatsToRemove;
+        item.added = threatsToAdd != null && threatsToAdd.length > 0 ? threatsToAdd : null;
+        item.removed = threatsToRemove != null && threatsToRemove.length > 0 ? threatsToRemove : null;
 
         if(item.removed != null && item.removed.length > 0 )
             resultR = pq.removeAll(Set.of(item.removed));
@@ -1069,20 +984,6 @@ public class FreeSegment extends Segment {
 
     public FreeSegment(int indexStart, int indexEnd) {
         super(indexStart, indexEnd);
-    }
-
-    @Override
-    public void onLinkUpdate(Segment adj) {
-        if( adj instanceof ThreatT ) {
-            if( adj == next ) {
-                if( prev != null )
-                    prev.onLinkUpdate(this);
-            }
-            else if( adj == prev ) {
-                if( next != null )
-                    next.onLinkUpdate(this);
-            }
-        }
     }
 
     @Override
