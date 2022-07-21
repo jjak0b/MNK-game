@@ -5,6 +5,7 @@ import java.util.*;
 public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2ThreatDetectionLogic.ThreatT>, Comparator<Scan2ThreatDetectionLogic.ThreatT> {
 
     protected int M, N, K;
+    public int[] bonusScoreOnMovesLeft;
 
     // these are buckets of Trees, organized to make search fast O(log)
     public RowOfBlocks[][] blocksOnDirection;
@@ -49,7 +50,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         };
 
 
-
+        bonusScoreOnMovesLeft = new int[]{ 0, K*K*K, K*K };
         playerThreatsOnDirection = new PriorityThreatsTracker[2][Utils.DIRECTIONS.length];
 
         coordinatesMap = new int[Utils.DIRECTIONS.length][M][N][ 2 ];
@@ -586,14 +587,23 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
     }
 
 
+    /**
+     * compare 2 threats and return the compare result of {@link Comparator#compare(Object, Object)}
+     * but in descending order based on threat's score
+     * @param o1
+     * @param o2
+     * @return
+     */
     public int compare(ThreatT o1, ThreatT o2) {
-        return 0;
+        return Integer.compare(o2.getScore(), o1.getScore());
     }
 
 class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
-    // this is the breadth of this streak allow to win for
+    final static int LEFT = 0;
+    final static int RIGHT = 1;
+
+    // score assigned to this streak, the higher its value, the closer it will be for win
     int score;
-    int breadthRequiredForWin;
 
     // free segments on left and right
     int[] adjacentFree = {0, 0};
@@ -611,6 +621,7 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
             this.otherMarkedNearFree[side] = threat.otherMarkedNearFree[side];
             this.freeNearOtherMarked[side] = threat.freeNearOtherMarked[side];
         }
+        score = threat.score;
     }
 
     public int getScore() {
@@ -618,29 +629,31 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
     }
 
     void updateScore() {
-        int streakCount = (1+length());
+        int streakCount = getStreakCount();
         int free = 0, other = 0, otherFree = 0;
-        int freeOnTotal = 0;
-        final int[] leftOnSide = {0, 0};
-        final int[] opponentMovesRequiredToCounterThis = {0, 0};
+        int freeOnTotal = getAdjacentFreeCount();
+        final int[] leftOnSide = {K, K};
+        int leftOnTotal = K - streakCount;
+        // ways count to counter a streak on a side
         final int[] waysForOpponentToCounterMe = {0, 0};
         final int[] breadthRequiredForWinOnSide = {0, 0};
+        final int[] canWinFactor = {0, 0};
+        int[] bonusScore = { 0, 0 }; // bonus score per side
+        int[] scenarios = { 0, 0 }; // scenario per side
 
         for (int side = 0; side < 2; side++) {
             free = getFreeOnSide(side);
-            freeOnTotal += free;
-
             // gradually check if can win due to a side properties[breadth], increasing by breadth each check
-            for (int breadth = 1; breadth <= 3; breadth++) {
+            for (int breadth = 1; breadth <= 3 && canWinFactor[ side ] < 1; breadth++) {
                 switch (breadth){
                     case 1: // win range is <= breadth 1
-                        if( (streakCount + free >= K || streakCount + freeOnTotal >= K) ) {
-                            breadthRequiredForWinOnSide[side] = 1;
-
+                        if( streakCount + free >= K
+                        // || streakCount + freeOnTotal >= K
+                        ) {
                             leftOnSide[ side ] = K - streakCount;
                             // risky scenario
                             if( streakCount + free >= K ) {
-                                opponentMovesRequiredToCounterThis[side] = 1; // a side
+                                breadthRequiredForWinOnSide[side] = 1;
                                 waysForOpponentToCounterMe[side] = 1;
                             }
                             // if both side = 1 then the opponent moves required are 2, so it's a better scenario
@@ -653,27 +666,65 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
                         other = getOtherMarkedOnSide(side);
                         if( (streakCount + free + other >= K) ) {
                             breadthRequiredForWinOnSide[side] = 2;
-                            leftOnSide[ side ] = K - streakCount;
+                            leftOnSide[ side ] = free;
                             // risky scenario
 
                             // opponent just need to mark an adjacent free
                             waysForOpponentToCounterMe[side] = 1;
-                            opponentMovesRequiredToCounterThis[side] = 1;
                         }
                         break;
                     case 3: // win range is <= breadth 3
                         otherFree = getOtherFreeOnSide(side);
                         if( (streakCount + free + other + otherFree >= K) ) {
                             breadthRequiredForWinOnSide[side] = 3;
-                            leftOnSide[ side ] = K - streakCount;
+                            leftOnSide[ side ] = free + Math.max(0, K - (streakCount + free + other) );
 
                             // very risky scenario
                             // opponent just need to mark an adjacent or other free to counter
                             waysForOpponentToCounterMe[side] = 2;
-                            opponentMovesRequiredToCounterThis[side] = 1;
                         }
                         break;
                 }
+                canWinFactor[ side ] = breadthRequiredForWinOnSide[ side ] > 0 ? 1 : 0;
+            }
+        }
+
+        score = 0;
+        // add score based on the streak scenario per side
+        for (int side = 0; side < 2; side++) {
+            // scenario 1: 1 move left in any breadth
+            if (leftOnSide[side] == 1 ) {
+                scenarios[side] = 1;
+            }
+            // scenario 2: 2 moves left and breadth[side] == 1
+            //      can complete streak using adjacent free and can be countered in at least 2 moves on worst case
+            //      if player X is in this scenario with K = 4: F F X X F or  F X X F F
+            //      and player X go to: F X X X F
+            //      then the opponent O can't counter this scenario, and player X wins after the O turn
+            else if( breadthRequiredForWinOnSide[side] == 1 && leftOnTotal == 2 && getFreeOnSide(side) >= 2 && getFreeOnSide(1 - side) >= 1 ){
+                scenarios[side] = 2;
+                waysForOpponentToCounterMe[side] = 0;
+                waysForOpponentToCounterMe[1-side] = 0;
+            }
+            // scenario 3: some moves left and can be counters in some ways
+            else {
+                scenarios[side] = 3;
+            }
+
+            score += canWinFactor[side] * streakCount;
+            bonusScore[ side ] = canWinFactor[side] * (leftOnSide[side] < bonusScoreOnMovesLeft.length
+                    ? bonusScoreOnMovesLeft[leftOnSide[side]] : 0);
+
+            // Debug.println("debug streak side " + side + " of streak: " + this + "\n can win: " + canWinFactor[side] + "\n" + getFreeOnSide(side) + " - " + getOtherMarkedOnSide(side) + " - " + getOtherFreeOnSide(side) );
+            // Debug.println("bonus score: \n scenario:" + scenarios[side] + "\nbonus:" + bonusScore[side]);
+            switch (scenarios[side]) {
+                case 1:
+                case 2:
+                    score += bonusScore[ side ];
+                    break;
+                default:
+                    score += bonusScore[ side ] / (1 + waysForOpponentToCounterMe[side]);
+                    break;
             }
         }
 
@@ -698,6 +749,19 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
         if( side >= 0)
             updateDataOnSide(side);
         updateScore();
+
+        // TODO: call recursive must on limit depth = max needed breadth
+        if( side == 1 && prev != null ) prev.onLinkUpdate(this);
+        else if( side == 0 && next != null ) next.onLinkUpdate(this);
+    }
+
+    @Override
+    public void updateAdjacent() {
+        for (int side = 0; side < 2; side++)
+            updateDataOnSide(side);
+        updateScore();
+
+        super.updateAdjacent();
     }
 
     /**
@@ -809,6 +873,14 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
         }
         return count;
     }
+
+    @Override
+    public String toString() {
+        return "ThreatT{" +
+                super.toString() + "\n" +
+                ", score=" + score +
+                '}';
+    }
 }
 
 /**
@@ -822,7 +894,7 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
  *  - This allow tracking of items insert / deletion order
  *  - This allow tracking the best bucket's index in O(1) ( so the priority queue with the best item)
  */
-class PriorityThreatsTracker {
+public class PriorityThreatsTracker {
 
     class HistoryItem {
         int row;
@@ -830,6 +902,17 @@ class PriorityThreatsTracker {
         int newBestRow;
         ThreatT[] added;
         ThreatT[] removed;
+
+        @Override
+        public String toString() {
+            return "HistoryItem{" +
+                    "row=" + row +
+                    ", oldBestRow=" + oldBestRow +
+                    ", newBestRow=" + newBestRow +
+                    ", added=" + Arrays.toString(added) +
+                    ", removed=" + Arrays.toString(removed) +
+                    '}';
+        }
     }
 
     protected Stack<HistoryItem> historyOnRow;
