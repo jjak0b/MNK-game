@@ -644,13 +644,9 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
      */
     @Override
     public void updateAdjacent() {
-        ThreatT oldSegment = new ThreatT(this);
-
         for (int side = 0; side < 2; side++)
             updateAdjacentDataOnSide(side);
         updateScore();
-
-        addToUpdatePool(oldSegment, new ThreatT(this) );
 
         super.updateAdjacent(3);
     }
@@ -768,7 +764,7 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
     @Override
     public String toString() {
         return "ThreatT{" +
-                super.toString() + "\n" +
+                super.toString() +
                 ", score=" + score +
                 '}';
     }
@@ -788,6 +784,8 @@ class ThreatT extends Streak implements ThreatInfo, SideThreatInfo {
 public class PriorityThreatsTracker {
 
     class HistoryItem {
+        // counter used to specify how many round this item has been unchanged (no update operation occurred)
+        int unchangedRoundsCounter;
         int row;
         int oldBestRow;
         int newBestRow;
@@ -844,29 +842,40 @@ public class PriorityThreatsTracker {
 
         Stack<HistoryItem> history = historyOnRow;
         PriorityQueue<ThreatT> pq = rowsOFPQ[row];
+        boolean isUnchanged = (threatsToAdd == null || threatsToAdd.length < 1 ) && (threatsToRemove == null || threatsToRemove.length < 1);
         boolean resultR = true, resultA = true;
 
-        HistoryItem item = new HistoryItem();
-        item.added = threatsToAdd != null && threatsToAdd.length > 0 ? threatsToAdd : null;
-        item.removed = threatsToRemove != null && threatsToRemove.length > 0 ? threatsToRemove : null;
+        if( !(history.isEmpty() && isUnchanged) ) {
+            HistoryItem item;
 
-        if(item.removed != null && item.removed.length > 0 )
-            resultR = pq.removeAll(Set.of(item.removed));
-        if(item.added != null && item.added.length > 0 )
-            resultA = pq.addAll(Set.of(item.added));
+            if( isUnchanged ) {
+                // reuse last item
+                item = history.peek();
+                item.unchangedRoundsCounter++;
+            }
+            else {
+                item = new HistoryItem();
+                item.added = threatsToAdd;
+                item.removed = threatsToRemove;
+                if(item.removed != null && item.removed.length > 0 )
+                    resultR = pq.removeAll(Set.of(item.removed));
+                if(item.added != null && item.added.length > 0 )
+                    resultA = pq.addAll(Set.of(item.added));
 
-        if( history.isEmpty() ) {
-            item.oldBestRow = -1;
-            item.newBestRow = row;
+                if (history.isEmpty()) {
+                    item.oldBestRow = -1;
+                    item.newBestRow = row;
+                }
+                else {
+                    int oldBestRow = history.peek().newBestRow;
+                    int comp = threatTComparator.compare(pq.peek(), rowsOFPQ[oldBestRow].peek());
+                    item.newBestRow = comp >= 0 ? row : oldBestRow;
+                    item.oldBestRow = oldBestRow;
+                }
+
+                history.push(item);
+            }
         }
-        else {
-            int oldBestRow = history.peek().newBestRow;
-            int comp = threatTComparator.compare(rowsOFPQ[row].peek(), rowsOFPQ[oldBestRow].peek());
-            item.newBestRow = comp >= 0 ? row : oldBestRow;
-            item.oldBestRow = oldBestRow;
-        }
-
-        history.push(item);
 
         return resultR && resultA;
     }
@@ -880,15 +889,23 @@ public class PriorityThreatsTracker {
     public boolean pop(int row) {
         Stack<HistoryItem> history = historyOnRow;
         PriorityQueue<ThreatT> pq = rowsOFPQ[row];
-
-        HistoryItem item = history.pop();
+        HistoryItem item = null;
+        if( !history.isEmpty() ) {
+            item = history.peek();
+            item.unchangedRoundsCounter--;
+            item = item.unchangedRoundsCounter < 0 ? history.pop() : null;
+        }
 
         boolean resultR = true, resultA = true;
 
-        if(item.added != null && item.added.length > 0 )
-            resultR = pq.removeAll(Set.of(item.added));
-        if(item.removed != null && item.removed.length > 0 )
-            resultA = pq.addAll(Set.of(item.removed));
+        if( item != null ) {
+            if (item.added != null && item.added.length > 0)
+                resultR = pq.removeAll(Set.of(item.added));
+            if (item.removed != null && item.removed.length > 0)
+                resultA = pq.addAll(Set.of(item.removed));
+        }
+        // item == null case happen only when on first time adding item on a row, but there are no changes, so no rows are added
+        // so when push has been called with no addition / deletion
 
         return resultR && resultA;
     }
