@@ -34,68 +34,66 @@ public class Segment {
         if( indexEnd <= to.indexEnd ){
             this.indexEnd = to.indexEnd;
 
-            this.next = to.next;
-            if( to.next != null )
-                to.next.prev = this;
+            linkNext(to.next);
         }
         else {
             this.indexStart = to.indexStart;
 
-            this.prev = to.prev;
-            if( to.prev != null )
-                to.prev.next = this;
+            linkPrev(to.prev);
         }
-        to.unLink();
+        to.linkPrev(null);to.linkNext(null);
     }
 
     /**
+     * Set the next segment and link this as item's previous; the other sides/links are unchanged.
+     * @PostCondition on return. the caller should call {@link #updateAdjacent(int)} to make adjacent aware of this change
+     * @param item
+     */
+    public void linkPrev(Segment item) {
+        if( item != null )
+            item.next = this;
+        this.prev = item;
+    }
+
+    /**
+     * Set the previous segment and link this as item's next; the other sides/links are unchanged.
+     * @PostCondition on return. the caller should call {@link #updateAdjacent(int)} to make adjacent aware of this change
+     * @param item
+     */
+    public void linkNext(Segment item) {
+        if( item != null )
+            item.prev = this;
+        this.next = item;
+    }
+
+    /**
+     * Links the item as previous if this segment and as next of old previous
      * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment, int)} for this and the item
      * @param item
      */
     public void insertPrev(Segment item) {
-        // link prev <- new -> this
-        if( item != null ) {
+        Segment newItemPrev = prev;
+        if( item != null )
             indexStart = item.indexEnd+1;
-
-            item.next = this;
-            item.prev = prev;
-        }
-        // link prev -> new <- this
-        if( prev != null )
-            prev.next = item;
-        prev = item;
+        // link prev <- new -> this
+        linkPrev(item);
+        if( newItemPrev != null )
+            newItemPrev.linkNext(item);
     }
 
     /**
+     * Links the item as previous if this segment and as next of old previous
      * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment, int)} for this and the item
      * @param item
      */
     public void insertNext(Segment item) {
-        // link this <- new -> next
-        if( item != null ) {
-            item.prev = this;
-            item.next = next;
+        Segment newItemNext = next;
+        if( item != null )
             indexEnd = item.indexStart-1;
-        }
         // link this -> new <- next
-        if( next != null )
-            next.prev = item;
-        next = item;
-    }
-
-    /**
-     * newPrev is linked before this segment.
-     * newNext is linked after this segment.
-     * The coordinates of this segment are updated to (newPrev.indexEnd+1, newNext.indexStart-1)
-     * @PostCondition on return, the caller must call {@link #onLinkUpdate(Segment, int)} for this, newPrev, and newNext
-     * @param newPrev
-     * @param newNext
-     */
-    public void updateSize(Segment newPrev, Segment newNext ) {
-
-        insertPrev(newPrev);
-        insertNext(newNext);
-
+        linkNext(item);
+        if( newItemNext != null )
+            newItemNext.linkPrev(item);
     }
 
     /**

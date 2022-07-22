@@ -362,9 +362,11 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
             // start merge operation
             blocks.remove(lowerOrEq);
 
-            myCellBlock.insertPrev(lowerOrEq.prev);
-            myCellBlock.insertNext(lowerOrEq.next);
+            // link both as lowerOrEq.prev <-> my <-> lowerOrEq.next
+            myCellBlock.linkPrev(lowerOrEq.prev); lowerOrEq.linkPrev(null);
+            myCellBlock.linkNext(lowerOrEq.next); lowerOrEq.linkNext(null);
 
+            // link both as lowerOrEq.prev <-> (left partition if any) <-> my <-> (right partition if any) <-> lowerOrEq.next
             if( leftPartition.length() >= 0 ) {
                 blocks.add(leftPartition);
                 myCellBlock.insertPrev(leftPartition);
