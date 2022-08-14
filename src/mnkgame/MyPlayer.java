@@ -133,7 +133,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
             }
         };
 
-        bonusScoreOnMovesLeft = new int[]{ 0, K*K*K, K*K };
+        bonusScoreOnMovesLeft = new int[]{ 0, 100000, 1000, 10 };
 
         corners = new int[][]{ {0, 0}, {0, currentBoard.N-1}, {currentBoard.M-1, 0}, {currentBoard.M-1, currentBoard.N-1} };
         maxDepthSearch = 6;
@@ -195,7 +195,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
     protected void initCells(int M, int N, int K) {
         final int count = M * N;
 
-        DIRTY_CELLS_SIZE = K * Utils.DIRECTIONS.length;
+        DIRTY_CELLS_SIZE = 1+ K * Utils.DIRECTIONS.length; // TEMP
         dirtyCellsIds = new Integer[DIRTY_CELLS_SIZE];
         dirtyCellsIndexesCount = 0;
         cellsIds = new Integer[ count ];
@@ -415,7 +415,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
 //                break;
             default:
                 if ( DEBUG_SHOW_CANDIDATES )
-                    Debug.println("Candidates: " + Arrays.toString(getCellCandidates(currentBoard)));
+                    Debug.println("Candidates: " + getCellCandidates(currentBoard));
                 // TODO: check with start @ (5, 4 ) in 7 7 4
                 // Good: 6 6 4, 7 7 4 -> moveleft = 5
                 outcome = alphaBetaPruning(
@@ -669,7 +669,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
     }
 
     @Override
-    public MNKCell[] getCellCandidates(MNKBoard board) {
+    public Iterable<MNKCell> getCellCandidates(MNKBoard board) {
         if( shouldSortCellsIds ) {
             sortDirtyWeights(currentBoard.currentPlayer());
             shouldSortCellsIds = false;
@@ -681,7 +681,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
         }
 
         // Debug.println(Arrays.toString(buffer));
-        return buffer;
+        return Arrays.asList(buffer);
     }
 
     private void initDirty() {
@@ -732,7 +732,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
 
     }
 
-    private void addWarningWeight(int playerIndex, int i, int j, int value) {
+    protected void addWarningWeight(int playerIndex, int i, int j, int value) {
         MNKCell updatedCell;
         weights[playerIndex][ i ][ j ].value += value;
         // update cell position
@@ -764,6 +764,9 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
     }
     public void setUsefulness(int playerIndex, int directionType, int i, int j, int value ) {
         usefulness[playerIndex][directionType][ i ][ j ].value = value;
+    }
+    public int getUsefulness(int playerIndex, int directionType, int i, int j) {
+        return usefulness[playerIndex][directionType][ i ][ j ].value;
     }
 
 

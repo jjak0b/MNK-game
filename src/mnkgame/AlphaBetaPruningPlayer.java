@@ -263,8 +263,8 @@ public class AlphaBetaPruningPlayer implements MNKPlayer{
     /**
      * @return moves candidates
      */
-    public MNKCell[] getCellCandidates(MNKBoard board) {
-        return board.getFreeCells();
+    public Iterable<MNKCell> getCellCandidates(MNKBoard board) {
+        return Arrays.asList(board.getFreeCells());
     }
 
     public void unMark(MNKBoard tree, int depth) {

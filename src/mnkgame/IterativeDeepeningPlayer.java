@@ -184,7 +184,7 @@ public class IterativeDeepeningPlayer extends MyPlayer {
 
         long leftTime = timeout;
         if ( DEBUG_SHOW_CANDIDATES )
-            Debug.println("Candidates: " + Arrays.toString(getCellCandidates(currentBoard)));
+            Debug.println("Candidates: " + getCellCandidates(currentBoard));
 
         // we assume are already in valid state
         // setInValidState();
