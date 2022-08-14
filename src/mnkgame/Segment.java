@@ -23,6 +23,40 @@ public class Segment {
     }
 
     /**
+     * if segment is inside this segment will be used {@link #innerDistance(Segment, int)}
+     * other wuse return the outer distance from segment's end to this segment start if it's before this segment
+     * or from segment's start to this segment end otherwise
+     * @param segment
+     * @param side
+     * @return
+     */
+    public int distance(Segment segment, int side) {
+        if(segment.indexEnd <= indexStart) return indexStart - segment.indexEnd;
+        else if(indexEnd <= segment.indexStart) return segment.indexStart - indexEnd;
+        else return innerDistance(segment, side);
+    }
+
+    public int innerDistance(Segment segment, int fromSide) {
+        if( indexStart <= segment.indexStart && segment.indexEnd <= indexEnd ) {
+            if( fromSide == 0 ) {
+                return segment.indexStart - indexStart;
+            }
+            else {
+                return indexEnd - segment.indexEnd;
+            }
+        }
+        return 0;
+    }
+
+    Segment getLinkOnSide(int side, int count) {
+        Segment it = this;
+
+        for (int i = 0; i < count && it != null; i++)
+            it = side <= 0 ? it.prev : it.next;
+
+        return it;
+    }
+    /**
      * Merge this and the provided segment.
      * The provided segment will be unlinked after this operation.
      * @PostCondition on return. the caller should call {@link #updateAdjacent(int)} to make adjacent aware of this change
