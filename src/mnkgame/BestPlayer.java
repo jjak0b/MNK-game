@@ -2,7 +2,7 @@ package mnkgame;
 
 
 // this class is a wrapper for a player implementation
-public class BestPlayer2 extends BestPlayer {
+public class BestPlayer extends BestPlayerLegacy {
 
 
     @Override
@@ -13,7 +13,7 @@ public class BestPlayer2 extends BestPlayer {
 
     @Override
     public String playerName() {
-        return "Cacher2";
+        return "Hotspot";
     }
 
     public void test() {
