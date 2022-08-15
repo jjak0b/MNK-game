@@ -350,21 +350,20 @@ public class MyPlayer2 extends AlphaBetaPruningPlayer implements BoardRestorable
     }
 
     protected void restoreTrackingBoard(MNKCell[] FC, MNKCell[] MC) {
-        // we suppose currentBoard.MC.size() >= MC.length
+        // we have to restore last valid state
 
-        // we have to restore last valid state, so without last enemy move and this player's last move
-        int countToMark = 2;
-        int countMCBeforeInvalid = MC.length - countToMark;
-        int countToUnMark = currentBoard.MC.size()-countMCBeforeInvalid;
+        int validCount = MC.length - (isStateValid() ? 1 : 2);
 
-        // then un-mark all until we reach the old valid state.
-        for (int i = 0; i < countToUnMark; i++) {
+        // unmark all after the last 2 MC's moves, including the last move at same index on our board
+        // this because if (!isStateValid()) then the last our mark hasn't been recorded on our board (same as last opponent mark)
+        // so rewind the board history to last opponent turn and so restore last our turn and last opponent turn
+        int count = currentBoard.MC.size();
+        for (; count > 0 && count > validCount ; count--)
             unMark(currentBoard, -1);
-        }
-        // and then mark to current state
-        for (int i = 0; i < countToMark; i++) {
-            mark(currentBoard, MC[ countMCBeforeInvalid + i ], -1);
-        }
+        // so mark the moves up to the last move
+        for (; count < MC.length; count++)
+            mark(currentBoard, MC[count], -1);
+
     }
 
     @Override
