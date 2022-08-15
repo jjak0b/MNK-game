@@ -3,7 +3,6 @@ package test;
 import mnkgame.GoodMemoryPlayer;
 import mnkgame.MNKGameState;
 import mnkgame.MNKPlayer;
-import mnkgame.OptimisticPlayer;
 
 public class HeavyTester extends AdvancedMNKPlayerTester {
 
@@ -13,8 +12,7 @@ public class HeavyTester extends AdvancedMNKPlayerTester {
     };
 
     Class[] playerClasses = new Class[]{
-            GoodMemoryPlayer.class,
-            OptimisticPlayer.class
+            GoodMemoryPlayer.class
     };
 
     public HeavyTester(int TIMEOUT, boolean VERBOSE) {

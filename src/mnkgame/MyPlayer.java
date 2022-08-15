@@ -35,6 +35,9 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
     protected int dirtyCellsIndexesCount;
     protected int DIRTY_CELLS_SIZE;
 
+    MNKCell[] startingRoundFC;
+    MNKCell[] startingRoundMC;
+
     // debug
     public static final boolean DEBUG_SHOW_STREAKS = Debug.Player.DEBUG_SHOW_STREAKS;
     public static final boolean DEBUG_SHOW_USEFUL = Debug.Player.DEBUG_SHOW_USEFUL;
@@ -110,10 +113,10 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
      * @param first           True if it is the first player, False otherwise
      * @param timeout_in_secs Maximum amount of time (in seconds) for selectCell
      */
-    public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
+    public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         // New random seed for each game
 
-        super.initPlayer(M, N, K, first, timeout_in_secs);
+        super.init(M, N, K, first, timeout_in_secs);
 
         threatDetectionLogic = new ScanThreatDetectionLogic() {
 
@@ -286,21 +289,20 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
 
 
     protected void restoreTrackingBoard(MNKCell[] FC, MNKCell[] MC) {
-        // we suppose currentBoard.MC.size() >= MC.length
+        // we have to restore last valid state
 
-        // we have to restore last valid state, so without last enemy move and this player's last move
-        int countToMark = 2;
-        int countMCBeforeInvalid = MC.length - countToMark;
-        int countToUnMark = currentBoard.MC.size()-countMCBeforeInvalid;
+        int validCount = MC.length - (isStateValid() ? 1 : 2);
 
-        // then un-mark all until we reach the old valid state.
-        for (int i = 0; i < countToUnMark; i++) {
-            unMark(currentBoard, -1);
-        }
-        // and then mark to current state
-        for (int i = 0; i < countToMark; i++) {
-            mark(currentBoard, MC[ countMCBeforeInvalid + i ], -1);
-        }
+        // unmark all after the last 2 MC's moves, including the last move at same index on our board
+        // this because if (!isStateValid()) then the last our mark hasn't been recorded on our board (same as last opponent mark)
+        // so rewind the board history to last opponent turn and so restore last our turn and last opponent turn
+        int count = currentBoard.MC.size();
+        for (; count > 0 && count > validCount ; count--)
+            unMark();
+        // so mark the moves up to the last move
+        for (; count < MC.length; count++)
+            mark(MC[count]);
+
     }
 
     @Override
@@ -327,7 +329,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
         isCurrentBoardLeftInValidState = false;
     }
 
-    protected AlphaBetaOutcome strategyAsFirst(MNKCell[] FC, MNKCell[] MC, long endTime) {
+    protected AlphaBetaOutcome strategyAsFirst() {
         if( DEBUG_START_FIXED_MOVE ) {
             int[] coords = corners[ 1 ]; // constant for debug
             if( DEBUG_SHOW_INFO )
@@ -338,7 +340,6 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
         }
         else {
             return alphaBetaPruning(
-                    currentBoard,
                     true,
                     STANDARD_SCORES.get(STATE_LOSE),
                     STANDARD_SCORES.get(STATE_WIN),
@@ -365,92 +366,81 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
 
     /**
      * Select a position among those listed in the <code>FC</code> array
-     *
-     * @param FC Free Cells: array of free cells
-     * @param MC Marked Cells: array of already marked cells, ordered with respect
-     *           to the game moves (first move is in the first position, etc)
      * @return an element of <code>FC</code>
      */
     @Override
-    public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
-        AlphaBetaOutcome outcome = null;
-        long elapsed = 0;
-        long startTime = System.currentTimeMillis();
-        long endTime = startTime + (long) ( timeout * (99.0/100.0));
-
-        if( !isStateValid()) {
-            if( DEBUG_SHOW_INFO )
-                Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
-            restore(FC, MC);
-            if( DEBUG_SHOW_INFO )
-                Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state, time spent: " + (elapsed/1000.0) + Utils.ConsoleColors.RESET );
-            setInValidState();
-        }
-        else {
-            MNKCell choice = null;
-            if (MC.length > 0) {
-                choice = MC[MC.length - 1]; // Save the last move in the local MNKBoard
-                mark(currentBoard, choice, 0);
-                ++round;
-                choice = null;
-            }
-        }
-        elapsed += System.currentTimeMillis() - startTime;
-
-        startTime = System.currentTimeMillis();
-        // pre calculate expected work time
-        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
-        long workTime = endTime;
-        workTime -= elapsed;
-        workTime -= expectedTimeRequiredToExit;
-
+    public MNKCell search() {
         // set in invalid state, because if running out time, this function may be terminated
         invalidateState();
-        switch ( MC.length ){
+        switch ( round ){
             case 0: // move as first
-                outcome = strategyAsFirst(FC, MC, workTime);
+                lastResult = strategyAsFirst();
                 break;
 //            case 1: // move as second
 //                choice = strategyAsSecond(FC, MC);
 //                break;
             default:
                 if ( DEBUG_SHOW_CANDIDATES )
-                    Debug.println("Candidates: " + getCellCandidates(currentBoard));
+                    Debug.println("Candidates: " + this.getMovesCandidates());
                 // TODO: check with start @ (5, 4 ) in 7 7 4
                 // Good: 6 6 4, 7 7 4 -> moveleft = 5
-                outcome = alphaBetaPruning(
-                        currentBoard,
-                        true,
-                        STANDARD_SCORES.get(STATE_LOSE),
-                        STANDARD_SCORES.get(STATE_WIN),
-                        0,
-                        maxDepthSearch,
-                        workTime
-                );
+                super.search();
                 break;
         }
         // we returned so assuming all right
         setInValidState();
+        return lastResult.move;
+    }
 
-        elapsed += System.currentTimeMillis()-startTime;
-        long timeLeft = (endTime-elapsed);
+    /**
+     *
+     * @param FC Free Cells: array of free cells
+     * @param MC Marked Cells: array of already marked cells, ordered with respect
+     *           to the game moves (first move is in the first position, etc)
+     */
+    @Override
+    public void initSearch(MNKCell[] FC, MNKCell[] MC) {
+        long elapsed = 0;
+        startingRoundFC = FC;
+        startingRoundMC = MC;
 
+        // pre calculate expected work time
+        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
+        startTime = System.currentTimeMillis();
+        expectedEndTime = startTime + (long) ( timeout * (99.0/100.0)) - expectedTimeRequiredToExit;
+
+        if( DEBUG_SHOW_INFO )
+            Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
+
+        restore(FC, MC);
+        ++round;
+
+        elapsed += System.currentTimeMillis() - startTime;
+        if( DEBUG_SHOW_INFO )
+            Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state, time spent: " + (elapsed/1000.0) + Utils.ConsoleColors.RESET );
+        if( DEBUG_SHOW_BOARD )
+            Debug.println( "after opponent move:\n" + boardToString() );
+
+        lastResult = null;
+    }
+
+    @Override
+    public void postSearch() {
         if( Debug.DEBUG_ENABLED ) {
             if(!isStateValid()){
                 if( DEBUG_SHOW_INFO )
                     Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
-                restore(FC, MC);
+                restore(startingRoundFC, startingRoundMC);
                 if( DEBUG_SHOW_INFO )
                     Debug.println(Utils.ConsoleColors.YELLOW + "End Restoring current state" + Utils.ConsoleColors.RESET );
             }
         }
 
         if( isStateValid() )
-            mark(currentBoard, outcome.move, 0);
+            mark(lastResult.move);
 
         if( DEBUG_SHOW_STATS )
-            printStats(outcome, elapsed, timeLeft);
-
+            printStats(lastResult);
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
         if( Debug.DEBUG_ENABLED && currentBoard.gameState() != MNKGameState.OPEN ){
@@ -458,13 +448,11 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
         }
 
         round++;
-
-        return outcome.move;
     }
 
     @Override
-    protected AlphaBetaOutcome evaluate(MNKBoard board, int depth, boolean isMyTurn) {
-        MNKGameState gameState = board.gameState();
+    protected AlphaBetaOutcome evaluate(int depth, boolean isMyTurn) {
+        MNKGameState gameState = currentBoard.gameState();
         AlphaBetaOutcome outcome = new AlphaBetaOutcome();
 
         int score = STANDARD_SCORES.get(gameState);
@@ -495,7 +483,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
             int opponentIndex = 1-playerIndex;
 
             final int[] maxPlayerStreak = {0, 0};
-            final int[] minPlayerMoveLeft = {board.K, board.K};
+            final int[] minPlayerMoveLeft = {currentBoard.K, currentBoard.K};
             final int[] waysToBeCountered = {1, 1};
 
             for (int indexPlayer = 0; indexPlayer < 2; indexPlayer++) {
@@ -512,11 +500,11 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
                         if( old > minPlayerMoveLeft[indexPlayer] ) {
 
                             // need just one of adjacent
-                            if( bestPlayerThreat.getStreakCount() + bestPlayerThreat.getAdjacentFreeCount() >= board.K )
+                            if( bestPlayerThreat.getStreakCount() + bestPlayerThreat.getAdjacentFreeCount() >= currentBoard.K )
                                 waysToBeCountered[indexPlayer] = bestPlayerThreat.getAdjacentFreeCount();
 
                             // need a link between 2 streak
-                            else if( bestPlayerThreat.getStreakCount() + bestPlayerThreat.getOtherMarkedCount() + bestPlayerThreat.getOtherFreeCount() >= board.K)
+                            else if( bestPlayerThreat.getStreakCount() + bestPlayerThreat.getOtherMarkedCount() + bestPlayerThreat.getOtherFreeCount() >= currentBoard.K)
                                 waysToBeCountered[indexPlayer] = 1;
                         }
                     }
@@ -631,13 +619,12 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
     }
 
     @Override
-    public void mark(MNKBoard tree, MNKCell marked, int depth) {
-        if (tree == null) tree = currentBoard;
+    public void mark(MNKCell marked) {
 
-        int markingPlayer = tree.currentPlayer();
-        super.mark(tree, marked, depth);
+        int markingPlayer = currentBoard.currentPlayer();
+        super.mark(marked);
 
-        marked = tree.MC.getLast();
+        marked = currentBoard.MC.getLast();
         MNKCellState markState = marked.state;
 
         initDirty();
@@ -645,31 +632,30 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
         // update target's weight on remove
         addDirty(marked.i, marked.j);
 
-        getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, depth);
+        getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, 0);
 
         finishDirty(true);
     }
 
     @Override
-    public void unMark(MNKBoard tree, int depth) {
-        if (tree == null) tree = currentBoard;
-        MNKCell marked = tree.MC.getLast();
+    public void unMark() {
+        MNKCell marked = currentBoard.MC.getLast();
         MNKCellState markState = currentBoard.cellState(marked.i, marked.j);
 
-        super.unMark(tree, depth);
-        int unMarkingPlayer = tree.currentPlayer();
+        super.unMark();
+        int unMarkingPlayer = currentBoard.currentPlayer();
 
         initDirty();
 
         addDirty( marked.i, marked.j);
 
-        getThreatDetectionLogic().unMark(currentBoard, marked, unMarkingPlayer, depth);
+        getThreatDetectionLogic().unMark(currentBoard, marked, unMarkingPlayer, 0);
 
         finishDirty(false);
     }
 
     @Override
-    public Iterable<MNKCell> getCellCandidates(MNKBoard board) {
+    public Iterable<MNKCell> getMovesCandidates() {
         if( shouldSortCellsIds ) {
             sortDirtyWeights(currentBoard.currentPlayer());
             shouldSortCellsIds = false;
@@ -834,15 +820,5 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
 
         }
         return Arrays.toString(cells);
-    }
-
-    /**
-     * Returns the player name
-     *
-     * @return string
-     */
-    @Override
-    public String playerName() {
-        return "MyPlayer";
     }
 }

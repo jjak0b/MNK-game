@@ -4,32 +4,26 @@ package mnkgame;
 import java.util.Arrays;
 
 // this class is a wrapper for a player implementation
-public class BestPlayer2 implements MNKPlayer {
-
-    MNKPlayer player = new MyPlayer2();
+public class BestPlayer2 extends BestPlayer {
 
 
     @Override
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
-        player.initPlayer(M, N, K, first, timeout_in_secs);
-        ((MyPlayer2)player).maxDepthSearch = 14;
-    }
-
-    @Override
-    public MNKCell selectCell(MNKCell[] FC, MNKCell[] MC) {
-        return player.selectCell(FC, MC);
+        setMoveStrategy(new GoodMemoryPlayer2());
+        moveStrategy.init(M, N, K, first, timeout_in_secs);
     }
 
     @Override
     public String playerName() {
-        return player.playerName();
+        return "Cacher2";
     }
 
     public void test() {
+
         MNKCell[] candidates;
-        MyPlayer2 player = new MyPlayer2();
+        GoodMemoryPlayer2 player = (GoodMemoryPlayer2) moveStrategy;
         int M = 10, N=10, K=5;
-        player.initPlayer(M, N, K, true, 15);
+        player.init(M, N, K, true, 15);
 
         MNKCell[] cells = new MNKCell[]{
                 new MNKCell(M/2, N/2),
@@ -45,7 +39,7 @@ public class BestPlayer2 implements MNKPlayer {
         for( MNKCell cell : cells ) {
             //candidates = player.getCellCandidates(null);
             // Debug.println(Arrays.toString(candidates));
-            player.mark(null, cell, 0);
+            player.mark(cell);
 
             for(int directionType : Utils.DIRECTIONS) {
                 Debug.println(Utils.toString(player.threatDetectionLogic.blocksOnDirection[directionType]));
@@ -57,7 +51,7 @@ public class BestPlayer2 implements MNKPlayer {
         for( MNKCell cell : cells ) {
             // candidates = player.getCellCandidates(null);
             // Debug.println(Arrays.toString(candidates));
-            player.unMark(null, 0);
+            player.unMark();
             Debug.println(player.boardToString());
         }
     }
