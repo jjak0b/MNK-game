@@ -153,25 +153,8 @@ public class GameTester {
             }
         }
 
-        printScores(playerScoresMap);
         printResults(settings, players, gameSettingResults);
-    }
-
-    public static void printScores(HashMap<MNKPlayer, Integer> scores) {
-        String[] header = new String[] { "Player", "Score" };
-
-        Set<MNKPlayer> players = scores.keySet();
-        List<String[]> rows = new ArrayList<>(players.size()+1);
-
-        rows.add(header);
-        for ( MNKPlayer player : players ) {
-            rows.add(new String[]{
-                    player.playerName(),
-                    String.valueOf(scores.get(player))
-            });
-        }
-
-        System.out.println(Utils.tableToString(rows));
+        printTotalResults(settings, players, gameSettingResults, playerScoresMap);
     }
 
     public static void printResults(GameSetting[] settings, MNKPlayer[] players, HashMap<GameSetting, HashMap<MNKPlayer, HashMap<MNKPlayer, GameResult>>> resultTable) {
@@ -206,6 +189,48 @@ public class GameTester {
             }
         }
 
+
+        System.out.println(Utils.tableToString(rows));
+    }
+
+    public static void printTotalResults(GameSetting[] settings, MNKPlayer[] players, HashMap<GameSetting, HashMap<MNKPlayer, HashMap<MNKPlayer, GameResult>>> resultTable, HashMap<MNKPlayer, Integer> scores) {
+        int winsAsP1, winsAsP2;
+        int draws;
+        int errorsAsP1, errorsAsP2;
+
+        String[] header = new String[]{
+                "Player",
+                "Score",
+                GameState.WINP1.toString(), GameState.WINP2.toString(),
+                GameState.DRAW.toString(),
+                GameState.ERRP1.toString(),GameState.ERRP2.toString(),
+        };
+
+        List<String[]> rows = new ArrayList<>(players.length+1);
+        rows.add(header);
+        for( MNKPlayer first : players ) {
+            winsAsP1 = 0; winsAsP2 = 0;
+            draws = 0;
+            errorsAsP1 = 0; errorsAsP2 = 0;
+            for( MNKPlayer second : players ) {
+                for(GameSetting setting : settings) {
+                    GameResult resultFirst = resultTable.get(setting).get(first).get(second);
+                    winsAsP1 += resultFirst.scores.get(GameState.WINP1);
+                    winsAsP2 += resultFirst.scores.get(GameState.WINP2);
+                    draws += resultFirst.scores.get(GameState.DRAW);
+                    errorsAsP1 += resultFirst.scores.get(GameState.ERRP1);
+                    errorsAsP2 += resultFirst.scores.get(GameState.ERRP2);
+                }
+            }
+
+            rows.add(new String[]{
+                    first.playerName(),
+                    String.valueOf(scores.get(first)),
+                    String.valueOf(winsAsP1), String.valueOf(winsAsP2),
+                    String.valueOf(draws),
+                    String.valueOf(errorsAsP1), String.valueOf(errorsAsP2)
+            });
+        }
 
         System.out.println(Utils.tableToString(rows));
     }
