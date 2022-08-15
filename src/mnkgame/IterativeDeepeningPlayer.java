@@ -129,7 +129,7 @@ public class IterativeDeepeningPlayer extends MyPlayer {
         if( Debug.DEBUG_ENABLED ) {
             if(!isStateValid()){
                 if( DEBUG_SHOW_INFO )
-                    Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
+                    Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state" + Utils.ConsoleColors.RESET );
                 startTime = System.currentTimeMillis();
                 restore(FC, MC);
                 elapsed = System.currentTimeMillis() - startTime;
