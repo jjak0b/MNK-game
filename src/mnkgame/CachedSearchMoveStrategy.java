@@ -3,7 +3,7 @@ package mnkgame;
 import java.math.BigInteger;
 import java.util.HashMap;
 
-public class GoodMemoryPlayer2 extends IterativeDeepeningPlayer2 {
+public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrategy {
 
     private HashMap<BigInteger, CachedResult> cachedResults;
 

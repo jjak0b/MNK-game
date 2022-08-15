@@ -1,6 +1,6 @@
 package test;
 
-import mnkgame.GoodMemoryPlayer;
+import mnkgame.CachedSearchMoveStrategyLegacy;
 import mnkgame.MNKGameState;
 import mnkgame.MNKPlayer;
 
@@ -12,7 +12,7 @@ public class HeavyTester extends AdvancedMNKPlayerTester {
     };
 
     Class[] playerClasses = new Class[]{
-            GoodMemoryPlayer.class
+            CachedSearchMoveStrategyLegacy.class
     };
 
     public HeavyTester(int TIMEOUT, boolean VERBOSE) {

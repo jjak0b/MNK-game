@@ -2,7 +2,7 @@ package mnkgame;
 
 import java.util.*;
 
-public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable {
+public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveStrategy implements BoardRestorable {
 
     protected float estimatedPercentOfTimeRequiredToExit;
 
@@ -100,7 +100,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
         }
     }
 
-    public MyPlayer() {
+    public ThreatSearchMoveStrategyLegacy() {
 
     }
 
@@ -132,7 +132,7 @@ public class MyPlayer extends AlphaBetaPruningPlayer implements BoardRestorable 
 
             @Override
             public int getSimulatedRound() {
-                return MyPlayer.this.getSimulatedRound();
+                return ThreatSearchMoveStrategyLegacy.this.getSimulatedRound();
             }
         };
 

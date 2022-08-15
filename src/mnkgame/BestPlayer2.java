@@ -1,15 +1,13 @@
 package mnkgame;
 
 
-import java.util.Arrays;
-
 // this class is a wrapper for a player implementation
 public class BestPlayer2 extends BestPlayer {
 
 
     @Override
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
-        setMoveStrategy(new GoodMemoryPlayer2());
+        setMoveStrategy(new CachedSearchMoveStrategy());
         moveStrategy.init(M, N, K, first, timeout_in_secs);
     }
 
@@ -21,7 +19,7 @@ public class BestPlayer2 extends BestPlayer {
     public void test() {
 
         MNKCell[] candidates;
-        GoodMemoryPlayer2 player = (GoodMemoryPlayer2) moveStrategy;
+        CachedSearchMoveStrategy player = (CachedSearchMoveStrategy) moveStrategy;
         int M = 10, N=10, K=5;
         player.init(M, N, K, true, 15);
 

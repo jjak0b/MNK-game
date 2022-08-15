@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 
-public class MyPlayer2 extends AlphaBetaPruningPlayer implements BoardRestorable {
+public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy implements BoardRestorable {
     protected StatefulBoard currentBoard;
     boolean isCurrentBoardLeftInValidState;
     float estimatedPercentOfTimeRequiredToExit;
@@ -21,7 +21,7 @@ public class MyPlayer2 extends AlphaBetaPruningPlayer implements BoardRestorable
 
     protected final Scan2ThreatDetectionLogic threatDetectionLogic = new Scan2ThreatDetectionLogic();
 
-    public MyPlayer2() {
+    public ThreatSearchMoveStrategy() {
         super();
     }
 

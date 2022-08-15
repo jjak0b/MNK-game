@@ -3,7 +3,7 @@ package mnkgame;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
-public class AlphaBetaPruningPlayer implements SearchMoveStrategy<MNKCell>{
+public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MNKCell>{
     protected Random rand;
 
     protected MNKGameState STATE_WIN;
@@ -45,7 +45,7 @@ public class AlphaBetaPruningPlayer implements SearchMoveStrategy<MNKCell>{
     public static final boolean DEBUG_SHOW_STATS = Debug.Player.DEBUG_SHOW_STATS;
     public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = Debug.Player.DEBUG_SHOW_MOVES_RESULT_ON_ROOT;
 
-    public AlphaBetaPruningPlayer() {}
+    public AlphaBetaPruningSearchMoveStrategy() {}
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
