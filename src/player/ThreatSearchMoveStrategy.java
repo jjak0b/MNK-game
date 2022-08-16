@@ -22,7 +22,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
     public static final boolean DEBUG_START_FIXED_MOVE = Debug.Player.DEBUG_START_FIXED_MOVE;
 
-    protected final Scan2ThreatDetectionLogic threatDetectionLogic = new Scan2ThreatDetectionLogic();
+    protected final ScanThreatDetectionLogic threatDetectionLogic = new ScanThreatDetectionLogic();
 
     public ThreatSearchMoveStrategy() {
         super();
@@ -103,7 +103,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
                         playerScores[ indexPlayer ] += movesLeft[ c ] * weight[c];
                     }
                     // computes players score based on best max threat's score
-                    Scan2ThreatDetectionLogic.ThreatT bestPlayerThreat = threatDetectionLogic.getBestThreat(indexPlayer, directionType);
+                    ScanThreatDetectionLogic.Threat bestPlayerThreat = threatDetectionLogic.getBestThreat(indexPlayer, directionType);
                     if( bestPlayerThreat != null ) {
                         // totalPlayerScores[indexPlayer] += bestPlayerThreat.getScore();
                         maxPlayerThreatScores[indexPlayer] = Math.max(maxPlayerThreatScores[indexPlayer], bestPlayerThreat.getScore());

@@ -6,7 +6,7 @@ import player.*;
 
 import java.util.*;
 
-public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<ThreatInfo>, Comparator<ThreatInfo> {
+public abstract class ScanThreatDetectionLogicLegacy implements ThreatDetectionLogic<ThreatInfo>, Comparator<ThreatInfo> {
 
     int M, N, K;
 
@@ -22,7 +22,7 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
     protected boolean[][] isCellAddedToCombo;
  */
 
-    public ScanThreatDetectionLogic() {
+    public ScanThreatDetectionLogicLegacy() {
 
     }
 

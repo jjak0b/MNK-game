@@ -119,7 +119,7 @@ public class Utils {
         return Arrays.toString(cells);
     }
 
-    public static String toString(Scan2ThreatDetectionLogic.RowOfBlocks[] rowsOfBlocks ) {
+    public static String toString(ScanThreatDetectionLogic.RowOfBlocks[] rowsOfBlocks ) {
         int rowsCount = rowsOfBlocks.length;
         List<String[]> rows = new ArrayList<>(rowsCount);
 
@@ -135,11 +135,11 @@ public class Utils {
                 Segment block = blockIt.next();
                 String cell = "";
                 for (int l = 0; l < 1 + block.length(); l++) {
-                    if( block instanceof Scan2ThreatDetectionLogic.Streak ) {
-                        MNKCellState state = ((Scan2ThreatDetectionLogic.Streak) block).color;
+                    if( block instanceof ScanThreatDetectionLogic.Streak ) {
+                        MNKCellState state = ((ScanThreatDetectionLogic.Streak) block).color;
 
                         if( Debug.DEBUG_USE_COLORS ) {
-                            switch (((Scan2ThreatDetectionLogic.Streak) block).color) {
+                            switch (((ScanThreatDetectionLogic.Streak) block).color) {
                                 case P1:
                                     if (Debug.DEBUG_USE_COLORS)
                                         cell = Utils.ConsoleColors.RED;

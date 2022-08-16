@@ -50,7 +50,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
     public static final boolean DEBUG_START_FIXED_MOVE = Debug.Player.DEBUG_START_FIXED_MOVE;
 
-    private ScanThreatDetectionLogic threatDetectionLogic;
+    private ScanThreatDetectionLogicLegacy threatDetectionLogic;
 
     public ThreatDetectionLogic<ThreatInfo> getThreatDetectionLogic() {
         return threatDetectionLogic;
@@ -123,7 +123,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
         super.init(M, N, K, first, timeout_in_secs);
 
-        threatDetectionLogic = new ScanThreatDetectionLogic() {
+        threatDetectionLogic = new ScanThreatDetectionLogicLegacy() {
 
             @Override
             public void onScanCallback(DirectionThreatInfo result, int directionType, MNKCell source, boolean isMark, int playerIndex) {
