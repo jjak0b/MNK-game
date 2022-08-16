@@ -36,13 +36,13 @@ public class Utils {
     // clockwise offsets ( center to left, center to right)
     public final static int[][][] DIRECTIONS_OFFSETS = {
             // DIRECTION_TYPE_VERTICAL
-            { { 0, -1 }, { 0, 1 } },
+            { { -1, 0 }, { 1, 0 } },
             // DIRECTION_TYPE_OBLIQUE_RL
             { { -1, -1 }, { 1, 1 } },
             // DIRECTION_TYPE_HORIZONTAL
-            { { -1, 0 }, { 1, 0 } },
+            { { 0, -1 }, { 0, 1 } },
             // DIRECTION_TYPE_OBLIQUE_LR
-            { { -1, 1 }, { 1, -1 } }
+            { { 1, -1 }, { -1, 1 } }
     };
 
     public static class Weight extends MNKCell implements Comparable<Weight> {
