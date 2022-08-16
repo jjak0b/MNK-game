@@ -649,6 +649,8 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
         int row = workingCellInfo.directionTypeCoords[0];
         int directionType = workingCellInfo.directionType;
 
+        // boolean is1Cell = freeBlock.length() == 0;
+
         int playerIndex;
         for (int side = 0; side < 2; side++) {
             Segment adj = freeBlock.getLinkOnSide(side, 1);
@@ -680,7 +682,16 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
 
                 int newScore = threat.getScoreOnSide(1-side);
                 int newMovesLeft = movesLeft[ side ];
-
+/*
+                if( is1Cell ) {
+                    if( side == 0 ) { // init on first side
+                        setMovePriority(playerIndex, directionType, coords[0], coords[1], 0 );
+                    }
+                    else {
+                        newScore = Math.max(newScore, getMovePriority(playerIndex, directionType, coords[0], coords[1]));
+                    }
+                }
+ */
                 MNKCell cell = new MNKCell(coords[0], coords[1]); // or a reference just to make it to update later
                 freeToUpdate.add(cell);
                 setMovesLeftAt(playerIndex, directionType, coords[0], coords[1], newMovesLeft);
