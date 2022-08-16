@@ -366,9 +366,9 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         if( DEBUG_SHOW_USEFUL ) {
             for (int p = 0; p < 2; p++) {
                 s += "Usefulness for p" + (p + 1) + ":\n";
-                for (int i = 0; i < currentBoard.B.length; i++) {
+                for (int i = 0; i < currentBoard.states().length; i++) {
                     for (int directionType : Utils.DIRECTIONS) {
-                        s += boardToString(currentBoard.B[i], getUsefulnessWeights(p, directionType)[i], currentBoard.K) + "\t\t\t";
+                        s += boardToString(currentBoard.states()[i], getUsefulnessWeights(p, directionType)[i], currentBoard.K) + "\t\t\t";
                     }
                     s += "\n";
                 }
@@ -376,11 +376,11 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
             }
         }
 
-        for (int i = 0; i < currentBoard.B.length; i++) {
-            s += Utils.toString(currentBoard.B[i]) + "\t\t\t";
+        for (int i = 0; i < currentBoard.states().length; i++) {
+            s += Utils.toString(currentBoard.states()[i]) + "\t\t\t";
             if( DEBUG_SHOW_WEIGHTS) {
                 for (int p = 0; p < 2; p++) {
-                    s += boardToString(currentBoard.B[i], weights[i], currentBoard.K) + "\t\t\t";
+                    s += boardToString(currentBoard.states()[i], weights[i], currentBoard.K) + "\t\t\t";
                 }
             }
             s += "\n";

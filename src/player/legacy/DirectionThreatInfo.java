@@ -1,4 +1,6 @@
-package player;
+package player.legacy;
+
+import player.SideThreatInfo;
 
 import java.util.Arrays;
 

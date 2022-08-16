@@ -1,7 +1,8 @@
-package player;
+package player.legacy;
 
 import mnkgame.MNKCell;
 import mnkgame.MNKPlayer;
+import player.SearchMoveStrategy;
 
 // this class is a wrapper for a player implementation
 public class BestPlayerLegacy implements MNKPlayer {

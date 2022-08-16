@@ -1,6 +1,6 @@
 package test;
 
-import player.CachedSearchMoveStrategyLegacy;
+import player.legacy.CachedSearchMoveStrategyLegacy;
 import mnkgame.MNKGameState;
 import mnkgame.MNKPlayer;
 

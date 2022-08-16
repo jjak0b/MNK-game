@@ -48,7 +48,7 @@ public class Segment {
         return 0;
     }
 
-    Segment getLinkOnSide(int side, int count) {
+    public Segment getLinkOnSide(int side, int count) {
         Segment it = this;
 
         for (int i = 0; i < count && it != null; i++)

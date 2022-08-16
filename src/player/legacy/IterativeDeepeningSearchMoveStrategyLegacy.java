@@ -1,6 +1,9 @@
-package player;
+package player.legacy;
 
 import mnkgame.MNKCell;
+import player.AlphaBetaOutcome;
+import player.Debug;
+import player.Utils;
 
 public class IterativeDeepeningSearchMoveStrategyLegacy extends ThreatSearchMoveStrategyLegacy {
 

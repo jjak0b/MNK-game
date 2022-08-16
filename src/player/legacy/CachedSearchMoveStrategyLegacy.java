@@ -1,4 +1,8 @@
-package player;
+package player.legacy;
+
+import player.AlphaBetaOutcome;
+import player.Debug;
+import player.StatefulBoard;
 
 import java.math.BigInteger;
 import java.util.HashMap;

@@ -84,8 +84,8 @@ public class Utils {
         }
         else {
             String s = "";
-            for (int i = 0; i < board.B.length; i++) {
-                s += Utils.toString( board.B[ i ] ) + "\n";
+            for (int i = 0; i < board.states().length; i++) {
+                s += Utils.toString( board.states()[ i ] ) + "\n";
             }
             return s;
         }

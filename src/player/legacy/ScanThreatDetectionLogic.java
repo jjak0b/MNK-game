@@ -1,7 +1,8 @@
-package player;
+package player.legacy;
 
 import mnkgame.MNKCell;
 import mnkgame.MNKCellState;
+import player.*;
 
 import java.util.*;
 

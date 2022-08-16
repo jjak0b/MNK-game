@@ -10,8 +10,6 @@ import java.util.List;
 
 // extended MNKBoard class with some utilities and accessors
 public class EBoard extends MNKBoard implements Board {
-    // allow access for debug purpose
-    protected final MNKCellState[][]    B;
 
     /**
      * Create a board of size MxN and initialize the game parameters
@@ -23,7 +21,11 @@ public class EBoard extends MNKBoard implements Board {
      */
     public EBoard(int M, int N, int K) throws IllegalArgumentException {
         super(M, N, K);
-        this.B = super.B;
+    }
+
+    // allow access for debug purpose
+    public MNKCellState[][] states() {
+        return B;
     }
 
     @Override

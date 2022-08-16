@@ -2,7 +2,7 @@ package test;
 
 import mnkgame.*;
 import player.BestPlayer;
-import player.BestPlayerLegacy;
+import player.legacy.BestPlayerLegacy;
 
 public class SimpleTester extends AdvancedMNKPlayerTester {
 

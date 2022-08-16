@@ -2,7 +2,7 @@ package player;
 
 import mnkgame.MNKCell;
 
-class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
+public class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
     public int eval;
     public MNKCell move;
     public int depth;
