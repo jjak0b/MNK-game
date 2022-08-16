@@ -794,11 +794,6 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
     int[] leftOnSide = {K, K};
     int[] scoreOnSide = {0, 0};
 
-    // free segments on left and right
-    int[] adjacentFree = {0, 0};
-    int[] otherMarkedNearFree = {0, 0};
-    int[] freeNearOtherMarked = {0, 0};
-
     public Threat(Streak streak) {
         super(streak.indexStart, streak.indexEnd, streak.color);
     }
@@ -806,9 +801,6 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
     public Threat(Threat threat) {
         super( threat.indexStart, threat.indexEnd, threat.color);
         for (int side = 0; side < 2; side++) {
-            this.adjacentFree[side] = threat.adjacentFree[side];
-            this.otherMarkedNearFree[side] = threat.otherMarkedNearFree[side];
-            this.freeNearOtherMarked[side] = threat.freeNearOtherMarked[side];
             this.scoreOnSide[side] = threat.scoreOnSide[side];
         }
         score = threat.score;
@@ -943,7 +935,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
     /**
      * Update data from adjacent link
      * @PostCondition call {@link #addToUpdatePool(Threat, Threat)} passing self clones as parameters before and after update
-     * @cost.time {@link #updateAdjacentDataOnSide }
+     * @cost.time {@link #updateScore()}
      * @param adj
      */
     @Override
@@ -962,8 +954,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
         Threat oldSegment = new Threat(this);
         // iterate over side and update data
         int oldScore = getScore();
-        if( side >= 0)
-            updateAdjacentDataOnSide(side);
+
         updateScore();
         int newScore = getScore();
         if( newScore != oldScore )
@@ -977,43 +968,9 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
      */
     @Override
     public void updateAdjacent() {
-        for (int side = 0; side < 2; side++)
-            updateAdjacentDataOnSide(side);
         updateScore();
 
         super.updateAdjacent(3);
-    }
-
-    /**
-     * Iterate over n=3 segment on a side to update data
-     * @cost.time O(3)
-     * @param side 0 for prev, else for next
-     */
-    protected void updateAdjacentDataOnSide(int side) {
-        Threat oldTHis = new Threat(this);
-        Segment it = this;
-        for (int i = 0; i < 3; i++) {
-            if( it == null ) break;
-            it = side == 0 ? it.prev : it.next;
-            if( i == 0 ) {
-                if(it != null && !(it instanceof Streak) )
-                    adjacentFree[side] = 1 + it.length();
-                else
-                    adjacentFree[side] = 0;
-            }
-            else if( i == 1 && adjacentFree[side] > 0) {
-                if(it != null && it instanceof Streak && ((Streak) it).color == color )
-                    otherMarkedNearFree[side] = 1 + it.length();
-                else
-                    otherMarkedNearFree[side] = 0;
-            }
-            else if( i == 2 && otherMarkedNearFree[side] > 0 ) {
-                if(it != null && !(it instanceof Streak) )
-                    freeNearOtherMarked[side] = 1 + it.length();
-                else
-                    freeNearOtherMarked[side] = 0;
-            }
-        }
     }
 
     @Override
