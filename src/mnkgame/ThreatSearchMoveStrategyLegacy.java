@@ -382,8 +382,6 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
             default:
                 if ( DEBUG_SHOW_CANDIDATES )
                     Debug.println("Candidates: " + this.getMovesCandidates());
-                // TODO: check with start @ (5, 4 ) in 7 7 4
-                // Good: 6 6 4, 7 7 4 -> moveleft = 5
                 super.search();
                 break;
         }
@@ -475,7 +473,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 */
         if (gameState == MNKGameState.OPEN) { // game is open
             // Debug.println( getTabForDepth( depth-1 ) + "Heuristic state");
-            // TODO: here we should do an Heuristic evaluation
+            // here we should do an Heuristic evaluation
 
             // newStimeScore = scoreWeight * oldScore  + ( 1 - scoreWeight ) * oldStimeScore
 

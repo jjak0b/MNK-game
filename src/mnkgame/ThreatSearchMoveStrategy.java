@@ -186,8 +186,6 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
             default:
                 if ( DEBUG_SHOW_CANDIDATES )
                     Debug.println("Candidates: " + this.getMovesCandidates());
-                // TODO: check with start @ (5, 4 ) in 7 7 4
-                // Good: 6 6 4, 7 7 4 -> moveleft = 5
                 super.search();
                 break;
         }
