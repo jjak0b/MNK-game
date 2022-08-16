@@ -1,4 +1,4 @@
-package mnkgame;
+package player;
 
 public interface SearchMoveStrategy<MOVE> {
 

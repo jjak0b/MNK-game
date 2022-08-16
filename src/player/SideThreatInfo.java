@@ -1,4 +1,4 @@
-package mnkgame;
+package player;
 
 public interface SideThreatInfo extends ThreatInfo {
 

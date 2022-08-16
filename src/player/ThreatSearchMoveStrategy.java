@@ -1,11 +1,14 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
+import mnkgame.MNKGameState;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 
 public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy implements BoardRestorable {
-    protected StatefulBoard currentBoard;
     boolean isCurrentBoardLeftInValidState;
     float estimatedPercentOfTimeRequiredToExit;
     int[][] corners;
@@ -70,8 +73,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     @Override
     protected void initTrackingBoard(int M, int N, int K) {
         try {
-            currentBoard = new StatefulBoard(M, N, K);
-            super.currentBoard = currentBoard;
+            currentBoard = new EBoard(M, N, K);
         }
         catch (Throwable e ) {
             Debug.println("Error on init board " + e);
@@ -258,7 +260,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         int markingPlayer = currentBoard.currentPlayer();
         super.mark(marked);
 
-        marked = currentBoard.MC.getLast();
+        marked = currentBoard.getLastMarked();
         MNKCellState markState = marked.state;
 
         getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, 0);
@@ -267,7 +269,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
     @Override
     public void unMark() {
-        MNKCell marked = currentBoard.MC.getLast();
+        MNKCell marked = currentBoard.getLastMarked();
         MNKCellState markState = currentBoard.cellState(marked.i, marked.j);
 
         super.unMark();
@@ -340,7 +342,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         // unmark all after the last 2 MC's moves, including the last move at same index on our board
         // this because if (!isStateValid()) then the last our mark hasn't been recorded on our board (same as last opponent mark)
         // so rewind the board history to last opponent turn and so restore last our turn and last opponent turn
-        int count = currentBoard.MC.size();
+        int count = currentBoard.getMarkedCellsCount();
         for (; count > 0 && count > validCount ; count--)
             unMark();
         // so mark the moves up to the last move

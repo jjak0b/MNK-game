@@ -1,9 +1,13 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKBoard;
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
+import mnkgame.MNKGameState;
 
 import java.math.BigInteger;
-import java.util.*;
 
-public class StatefulBoard extends MNKBoard {
+public class StatefulBoard extends EBoard {
 
     /**
      * Unique state, hash of the current board
@@ -31,13 +35,6 @@ public class StatefulBoard extends MNKBoard {
         BigInteger.TWO // second player 10
     };
 
-    // fast access to array index to matrix indexes map conversion, avoid use of a lot of runtime multiplications
-    // maybe it's not faster... https://stackoverflow.com/a/21540469/18145895
-    private final int[][] arrayToMatrixIndexMap;
-    // fast access to matrix indexes to array index map conversion, avoid use of a lot of runtime multiplications
-    // maybe it's not faster... https://stackoverflow.com/a/21540469/18145895
-    private final int[][] matrixToArrayIndexMap;
-
     public BigInteger getCurrentState() {
         return currentState;
     }
@@ -53,48 +50,13 @@ public class StatefulBoard extends MNKBoard {
     public StatefulBoard(int M, int N, int K) throws IllegalArgumentException {
         super(M, N, K);
 
-        final int count = M * N;
-
-        arrayToMatrixIndexMap = new int[count][2];
-        matrixToArrayIndexMap = new int[M][N];
-        initIndexConversionsMaps();
-
         currentState = BigInteger.ZERO;
 
     }
 
-    private void initIndexConversionsMaps() {
-        int arrayIndex = 0;
-        for (int i = 0; i < M; i++) {
-            for (int j = 0; j < N; j++) {
-                matrixToArrayIndexMap[ i ][ j ] = arrayIndex;
-
-                arrayToMatrixIndexMap[arrayIndex][0] = i;
-                arrayToMatrixIndexMap[arrayIndex][1] = j;
-
-                arrayIndex++;
-            }
-        }
-    }
     public StatefulBoard(int M, int N, int K, MNKCell[] movesDone ) {
         this(M, N, K);
         for (MNKCell move : movesDone) markCell(move.i, move.j);
-    }
-
-    public int getArrayIndexFromMatrixIndexes(int i, int j) {
-        // return (i * M) + j;
-        return matrixToArrayIndexMap[i][j];
-    }
-
-    public int[] getMatrixIndexesFromArrayIndex(int index) {
-        return arrayToMatrixIndexMap[index];
-    }
-
-    public int[] getMatrixIndexesFromArrayIndex(int index, int[] buffer ) {
-        // buffer[0] = index / M;
-        // buffer[1] = index % M;
-        Vectors.vectorCopy(buffer, arrayToMatrixIndexMap[index] );
-        return buffer;
     }
 
     /**
@@ -106,6 +68,7 @@ public class StatefulBoard extends MNKBoard {
      * @throws IndexOutOfBoundsException If <code>i,j</code> are out of matrix bounds
      * @throws IllegalStateException     If the game already ended or if <code>i,j</code> is not a free cell
      */
+    @Override
     public MNKGameState markCell(int i, int j) throws IndexOutOfBoundsException, IllegalStateException {
         // Debug.println( "before mark move:\n" + toString() );
         int markingPlayer = currentPlayer();
@@ -135,6 +98,7 @@ public class StatefulBoard extends MNKBoard {
      *
      * @throws IllegalStateException If there is no move to undo
      */
+    @Override
     public void unmarkCell() throws IllegalStateException {
         // Debug.println( "before unmark move:\n" + toString() );
         MNKCell newc = null;
@@ -155,56 +119,6 @@ public class StatefulBoard extends MNKBoard {
         // Debug.println( "after unmark move: " + newc + "\n" + toString() );
     }
 
-    private int getCurrentPlayerMod( int currentPlayer) {
-        if( currentPlayer > 1 ){
-            return 1;
-        }
-        else {
-            return -1;
-        }
-    }
-
-    public HashMap<Integer, List<MNKCell>> adj(MNKCell cell ) {
-        return adj( cell.i, cell.j );
-    }
-
-    public HashMap<Integer, List<MNKCell>> adj(int i, int j ) {
-
-       HashMap<Integer, List<MNKCell>> adj = new HashMap<>(2 * Utils.DIRECTIONS.length );
-
-        int[]
-                origin = { i, j },
-                position = { i, j };
-
-        for ( int direction_type : Utils.DIRECTIONS ) {
-
-            int[][] direction_offsets = Utils.DIRECTIONS_OFFSETS[direction_type];
-
-            List<MNKCell> cells = new ArrayList<>(direction_offsets.length);
-
-            for ( int side = 0; side < direction_offsets.length; side ++ ) {
-                Vectors.vectorSum(Vectors.vectorCopy(position, origin), direction_offsets[side]);
-                if( isVectorInBounds(position) ) {
-                    cells.add(new MNKCell(position[0], position[1], cellState(position[0], position[1])) );
-                }
-            }
-
-            adj.put(direction_type, cells );
-        }
-
-        return adj;
-    }
-
-    /**
-     * Check if vector as point is inside the sizes of the board
-     * @param v
-     * @return true if is inside, false otherwise
-     */
-    public boolean isVectorInBounds( int[] v ) {
-        return !(v[0] < 0 || v[0] >= M || v[1] < 0 || v[1] >= N);
-    }
-
-
     @Override
     public int hashCode() {
         return currentState.hashCode();
@@ -215,7 +129,7 @@ public class StatefulBoard extends MNKBoard {
             return false;
         }
 
-        MNKBoard b = (MNKBoard) o;
+        Board b = (Board) o;
         for (int i = 0; i < M; i++) {
             for (int j = 0; j < N; j++) {
                 if( cellState( i, j ) != b.cellState( i, j ) ) {

@@ -1,6 +1,8 @@
-package mnkgame;
+package player;
 
-public class IterativeDeepeningSearchMoveStrategyLegacy extends ThreatSearchMoveStrategyLegacy {
+import mnkgame.MNKCell;
+
+public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrategy {
 
     public static final boolean DEBUG_SHOW_DECISION_INFO = Debug.Player.DEBUG_SHOW_DECISION_INFO;
 
@@ -13,7 +15,6 @@ public class IterativeDeepeningSearchMoveStrategyLegacy extends ThreatSearchMove
 
     @Override
     public MNKCell search() {
-
         switch ( round ){
             case 0: // move as first
                 lastResult = strategyAsFirst();
@@ -60,9 +61,9 @@ public class IterativeDeepeningSearchMoveStrategyLegacy extends ThreatSearchMove
     public AlphaBetaOutcome iterativeDeepening(boolean shouldMaximize, int a, int b, int maxDepthSearch ) {
 
         long partialStartTime = 0,
-                partialEndTime = 0,
-                partialElapsed = 0,
-                partialWorkTime = 0;
+             partialEndTime = 0,
+             partialElapsed = 0,
+             partialWorkTime = 0;
 
         // we assume are already in valid state
         // setInValidState();
@@ -118,19 +119,7 @@ public class IterativeDeepeningSearchMoveStrategyLegacy extends ThreatSearchMove
 
         endTime = partialEndTime;
 
-        if( DEBUG_SHOW_STATS )
-            printStats(outcome);
-
         return outcome;
-    }
-
-    @Override
-    public void restore(MNKCell[] FC, MNKCell[] MC) {
-        initWeights(currentBoard.M, currentBoard.N, currentBoard.K);
-        initCombo();
-        initCells(currentBoard.M, currentBoard.N, currentBoard.K);
-        restoreTrackingBoard(FC, MC);
-        setInValidState();
     }
 
 }

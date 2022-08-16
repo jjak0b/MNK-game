@@ -1,4 +1,6 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCellState;
 
 public interface ThreatInfo {
 

@@ -1,4 +1,8 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKBoard;
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
 
 import java.util.*;
 
@@ -357,7 +361,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
     }
 
     @Override
-    public void mark(MNKBoard tree, MNKCell marked, int markingPlayer, int depth) {
+    public void mark(Board tree, MNKCell marked, int markingPlayer, int depth) {
         int playerIndex = getPlayerIndex(marked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
             ThreatT result = updateBlockAndAdjacentOnDirection(playerIndex, marked, directionType, marked.state, true );
@@ -368,7 +372,7 @@ public class Scan2ThreatDetectionLogic implements ThreatDetectionLogic<Scan2Thre
     }
 
     @Override
-    public void unMark(MNKBoard tree, MNKCell oldMarked, int unMarkingPlayer, int depth) {
+    public void unMark(Board tree, MNKCell oldMarked, int unMarkingPlayer, int depth) {
         int playerIndex = getPlayerIndex(oldMarked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
             ThreatT result = updateBlockAndAdjacentOnDirection(playerIndex, oldMarked, directionType, MNKCellState.FREE, false );

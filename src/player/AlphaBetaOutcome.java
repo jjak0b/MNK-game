@@ -1,4 +1,6 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
 
 class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
     public int eval;

@@ -1,9 +1,8 @@
 package test;
 
-import mnkgame.GoodMemoryPlayer;
-import mnkgame.MNKGameState;
-import mnkgame.MNKPlayer;
-import mnkgame.OptimisticPlayer;
+import mnkgame.*;
+import player.BestPlayer;
+import player.BestPlayerLegacy;
 
 public class SimpleTester extends AdvancedMNKPlayerTester {
 
@@ -34,8 +33,8 @@ public class SimpleTester extends AdvancedMNKPlayerTester {
     };
 
     Class[] playerClasses = new Class[]{
-            GoodMemoryPlayer.class,
-            OptimisticPlayer.class
+            BestPlayer.class,
+            BestPlayerLegacy.class
     };
 
     public SimpleTester(int TIMEOUT, boolean VERBOSE) {
@@ -53,7 +52,7 @@ public class SimpleTester extends AdvancedMNKPlayerTester {
     }
 
     public static void main(String[] args) {
-        AdvancedMNKPlayerTester playerTester = new SimpleTester(1, true);
+        AdvancedMNKPlayerTester playerTester = new SimpleTester(2, true);
         GameTester gameTester = new GameTester(1, playerTester );
         gameTester.main();
     }

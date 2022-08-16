@@ -1,4 +1,7 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
 
 import java.util.*;
 
@@ -75,8 +78,8 @@ public class Utils {
         }
     }
 
-    public static String toString(MNKBoard board) {
-        if( board instanceof StatefulBoard) {
+    public static String toString(EBoard board) {
+        if( board instanceof EBoard) {
             return board.toString();
         }
         else {
@@ -220,8 +223,8 @@ public class Utils {
         return table.toString();
     }
 
-    public static MNKCell getLastMarked(MNKBoard board) {
-        return board.MC.peekLast();
+    public static MNKCell getLastMarked(Board board) {
+        return board.getLastMarked();
     }
 
     public static class ConsoleColors {

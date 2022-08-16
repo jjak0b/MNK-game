@@ -1,4 +1,7 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
 
 import java.util.*;
 
@@ -55,7 +58,7 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
     }
 
     @Override
-    public void mark(MNKBoard tree, MNKCell marked, int markingPlayer, int depth) {
+    public void mark(Board tree, MNKCell marked, int markingPlayer, int depth) {
 
         // Link the adjacent cells
 /*
@@ -95,7 +98,7 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
     }
 
     @Override
-    public void unMark(MNKBoard tree, MNKCell marked, int unMarkingPlayer, int depth) {
+    public void unMark(Board tree, MNKCell marked, int unMarkingPlayer, int depth) {
         // Unlink the adjacent cells
 /*
         UnionFindUndo<MNKCell>[] comboMap = getPlayerCombos(unMarkingPlayer);
@@ -482,7 +485,7 @@ public abstract class ScanThreatDetectionLogic implements ThreatDetectionLogic<T
      * Board getter used to only ready board info
      * @return
      */
-    public abstract StatefulBoard getBoard();
+    public abstract EBoard getBoard();
 
     /**
      * get about current round of the board

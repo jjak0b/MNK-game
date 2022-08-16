@@ -1,16 +1,28 @@
-package mnkgame;
+package player;
 
 import java.math.BigInteger;
 import java.util.HashMap;
 
 public class CachedSearchMoveStrategyLegacy extends IterativeDeepeningSearchMoveStrategyLegacy {
 
+    protected StatefulBoard currentBoard;
     private HashMap<BigInteger, CachedResult> cachedResults;
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
         cachedResults = new HashMap<>((int) Math.ceil((M*N*K) / 0.75));
+    }
+
+    @Override
+    protected void initTrackingBoard(int M, int N, int K) {
+        try {
+            currentBoard = new StatefulBoard(M, N, K);
+            super.currentBoard = currentBoard;
+        }
+        catch (Throwable e ) {
+            Debug.println("Error on init board " + e);
+        }
     }
 
     @Override

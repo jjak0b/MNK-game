@@ -1,4 +1,8 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
+import mnkgame.MNKGameState;
 
 import java.util.*;
 
@@ -6,7 +10,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
     protected float estimatedPercentOfTimeRequiredToExit;
 
-    protected StatefulBoard currentBoard;
+    protected EBoard currentBoard;
 
     protected int[][] corners;
 
@@ -126,7 +130,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
                 updateWeightsOnDirection(directionType, source.i, source.j,  mod, playerIndex, result );
             }
             @Override
-            public StatefulBoard getBoard() {
+            public EBoard getBoard() {
                 return currentBoard;
             }
 
@@ -296,7 +300,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
         // unmark all after the last 2 MC's moves, including the last move at same index on our board
         // this because if (!isStateValid()) then the last our mark hasn't been recorded on our board (same as last opponent mark)
         // so rewind the board history to last opponent turn and so restore last our turn and last opponent turn
-        int count = currentBoard.MC.size();
+        int count = currentBoard.getMarkedCellsCount();
         for (; count > 0 && count > validCount ; count--)
             unMark();
         // so mark the moves up to the last move
@@ -361,7 +365,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
     }
 
     public int getSimulatedRound() {
-        return currentBoard.MC.size();
+        return currentBoard.getMarkedCellsCount();
     }
 
     /**
@@ -622,7 +626,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
         int markingPlayer = currentBoard.currentPlayer();
         super.mark(marked);
 
-        marked = currentBoard.MC.getLast();
+        marked = currentBoard.getLastMarked();
         MNKCellState markState = marked.state;
 
         initDirty();
@@ -637,7 +641,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
     @Override
     public void unMark() {
-        MNKCell marked = currentBoard.MC.getLast();
+        MNKCell marked = currentBoard.getLastMarked();
         MNKCellState markState = currentBoard.cellState(marked.i, marked.j);
 
         super.unMark();

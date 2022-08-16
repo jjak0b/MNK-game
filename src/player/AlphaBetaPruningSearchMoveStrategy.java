@@ -1,7 +1,10 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
+import mnkgame.MNKCellState;
+import mnkgame.MNKGameState;
 
 import java.util.*;
-import java.util.concurrent.TimeoutException;
 
 public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MNKCell>{
     protected Random rand;
@@ -30,7 +33,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     protected long minWorkTime;
     protected long averageWorkTime;
 
-    protected MNKBoard currentBoard;
+    protected EBoard currentBoard;
     protected AlphaBetaOutcome lastResult;
     /**
      * Used to rewind on a fast way (tricky) the recursive function of {@link #alphaBetaPruning(boolean, int, int, int, int, long)} through Exception when timeout has been reached.
@@ -92,7 +95,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     }
 
     protected void initTrackingBoard(int M, int N, int K) {
-        currentBoard = new MNKBoard(M,N,K);
+        currentBoard = new EBoard(M,N,K);
     }
 
     @Override
@@ -280,7 +283,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
 
     public void unMark() {
         //Debug.println( "\t" + tree.currentPlayer + " Unmarking:" + tree.MC.getLast() + " @ " + depth );
-        MNKCell unmarked = currentBoard.MC.getLast();
+        MNKCell unmarked = currentBoard.getLastMarked();
         currentBoard.unmarkCell();
 
         // Debug.println( getPlayerByIndex( tree.currentPlayer() ) + getTabForDepth( depth ) +  "Unmarking:" + unmarked + " @ " + depth);

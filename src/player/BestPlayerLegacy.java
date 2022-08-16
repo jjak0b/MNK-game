@@ -1,4 +1,7 @@
-package mnkgame;
+package player;
+
+import mnkgame.MNKCell;
+import mnkgame.MNKPlayer;
 
 // this class is a wrapper for a player implementation
 public class BestPlayerLegacy implements MNKPlayer {
