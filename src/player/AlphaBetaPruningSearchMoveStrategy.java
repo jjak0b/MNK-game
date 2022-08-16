@@ -95,7 +95,11 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     }
 
     protected void initTrackingBoard(int M, int N, int K) {
-        currentBoard = new EBoard(M,N,K);
+        setBoard(new EBoard(M,N,K));
+    }
+
+    protected void setBoard(EBoard board) {
+        this.currentBoard = board;
     }
 
     @Override

@@ -17,12 +17,16 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
     @Override
     protected void initTrackingBoard(int M, int N, int K) {
         try {
-            currentBoard = new StatefulBoard(M, N, K);
-            super.currentBoard = currentBoard;
+            setBoard(new StatefulBoard(M, N, K));
         }
         catch (Throwable e ) {
             Debug.println("Error on init board " + e);
         }
+    }
+
+    protected void setBoard(StatefulBoard board) {
+        this.currentBoard = board;
+        super.setBoard(board);
     }
 
     @Override

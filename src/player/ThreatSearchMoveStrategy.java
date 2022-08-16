@@ -66,18 +66,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
         threatDetectionLogic.init(M, N, K);
 
-        initTrackingBoard(M, N, K);
         setInValidState();
-    }
-
-    @Override
-    protected void initTrackingBoard(int M, int N, int K) {
-        try {
-            currentBoard = new EBoard(M, N, K);
-        }
-        catch (Throwable e ) {
-            Debug.println("Error on init board " + e);
-        }
     }
 
     @Override
