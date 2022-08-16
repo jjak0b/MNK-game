@@ -132,6 +132,9 @@ public class Segment {
 
     /**
      * Call the {@link #onLinkUpdate(Segment, int)} callback on adjacent of both sides with adj=this and breadth params
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O( breadth )</code></li>
+     * </ul>
      * @param breadth
      */
     public void updateAdjacent( int breadth ) {

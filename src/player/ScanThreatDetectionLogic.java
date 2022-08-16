@@ -359,6 +359,22 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
         }
     }
 
+    /**
+     * Mark the provided move and update the threats and free cells weights for each direction from the marked move
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O( T({@link #updateBlockAndAdjacentOnDirection}) + T({@link PriorityQueue#remove()}, N*M) + T({@link #flushUpdatePool()}) )</code>
+     *      <ul>
+     *          <li>Time using standard {@link PriorityQueue} API: <code>O( N*M )</code></li>
+     *          <li>Time using optimal API: <pre>O( log(M+N) + log(M*N) ) = O( log(M+N) + log(M) + log(N)) = O( log(M+N) )</pre></li>
+     *      </ul></li>
+     * </ul>
+     *
+     * @implNote Because of {@link PriorityQueue#remove} API, it require linear time, but same operation on different {@link PriorityQueue} API could be done in log time
+     * @param tree
+     * @param marked
+     * @param markingPlayer
+     * @param depth
+     */
     @Override
     public void mark(Board tree, MNKCell marked, int markingPlayer, int depth) {
         int playerIndex = getPlayerIndex(marked.state);
@@ -366,21 +382,51 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
             Threat result = updateBlockAndAdjacentOnDirection(playerIndex, marked, directionType, marked.state, true );
             onScanCallback(result, directionType, marked, true, playerIndex);
         }
-        freePriorityQueue.remove(new MNKCell(marked.i, marked.j));
-        flushUpdatePool();
+        freePriorityQueue.remove(new MNKCell(marked.i, marked.j)); // in theory O(log N*M), as java api O(N*M)
+        flushUpdatePool(); // in theory O(log N*M), as java api O(N*M)
     }
 
+    /**
+     * unMark the provided move and update the threats and free cells weights for each direction from the marked move
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O( T({@link #updateBlockAndAdjacentOnDirection}) + T({@link PriorityQueue#add}, N*M) + T({@link #flushUpdatePool()}) )</code>
+     *      <ul>
+     *          <li>Time using standard {@link PriorityQueue} API: <code>O( N*M )</code></li>
+     *          <li>Time using optimal API: <pre>O( log(M+N) + log(M*N) ) = O( log(M+N) + log(M) + log(N)) = O( log(M+N) )</pre></li>
+     *      </ul></li>
+     * </ul>
+     * @implNote Because of {@link PriorityQueue#remove} API, it require linear time, but same operation on different {@link PriorityQueue} API could be done in log time
+     * @param tree
+     * @param oldMarked
+     * @param unMarkingPlayer
+     * @param depth
+     */
     @Override
     public void unMark(Board tree, MNKCell oldMarked, int unMarkingPlayer, int depth) {
         int playerIndex = getPlayerIndex(oldMarked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
             Threat result = updateBlockAndAdjacentOnDirection(playerIndex, oldMarked, directionType, MNKCellState.FREE, false );
-            onScanCallback(null, directionType, oldMarked, false, playerIndex);
+            onScanCallback(result, directionType, oldMarked, false, playerIndex);
         }
-        freePriorityQueue.add(new MNKCell(oldMarked.i, oldMarked.j));
-        flushUpdatePool();
+        freePriorityQueue.add(new MNKCell(oldMarked.i, oldMarked.j)); // O(log N*M)
+        flushUpdatePool(); // in theory O(log N*M), as java api O(N*M)
     }
 
+    /**
+     * mark or unMark the provided move and update the adjacent threats and free segments an a direction
+     * from the segment that contains the move to other 3 adjacent segments and in sequence per side by breadth .
+     * @implNote The amount of updated segments are 1 + 3 per side for each direction: O( 7 * c ) = O(1).
+     * The segments updates involves only as multiplication constant, but it requires O(log N+M) time cost in other operations.
+     * Cost : <ul>
+     *     <li>Time: <code>O(log N+M)</code></li>
+     * </ul>
+     * @param playerIndex
+     * @param oldMarked
+     * @param directionType
+     * @param color
+     * @param isMark
+     * @return
+     */
     public Threat updateBlockAndAdjacentOnDirection(int playerIndex, MNKCell oldMarked, int directionType, MNKCellState color, boolean isMark) {
 
         int i = oldMarked.i, j = oldMarked.j;
@@ -410,6 +456,13 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
         Segment myCellBlock;
         Streak streakBlock = null;
 
+        /**
+         * Need to find the segment that contains the updated move, and update other segment into the tree
+         * - find through a tree search -> O(log size )
+         * - update the tree -> add and remove: O(log size)
+         * but size depends by max possible count of segments on a specific row.
+         * From {@link #init(int, int, int)} we have {@link RowOfBlocks} of size = O(max( M+N, M, N) ) = O(M+N)
+         */
         if( isMark ) {
             myCellBlock = new Threat(new Streak(column, column, color));
             lowerOrEq = blocks.floor(myCellBlock);
@@ -582,6 +635,14 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
             }
 
         }
+        /**
+         * myCellBlock.updateAdjacent() triggers updated segments that are O(7) -> O(1)
+         * - {@link #addToUpdatePool(Threat, Threat)} is O(1)
+         * - {@link #addToUpdatePool(FreeSegment)} is O(1)
+         * - {@link Threat#updateScore()} is O(1)
+         * A lot of constants but total per segment update is O(1)
+         * A lot of constants but myCellBlock.updateAdjacent() total is O(1)
+         */
         // Now update block on edges that can be owned by opponent or player, because we updated the available free cells
 
         // creates a mapping of cached blocks
@@ -596,9 +657,11 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
                 toRemove = !threatsToRemove[p].isEmpty() ? threatsToRemove[p].toArray(new Threat[0]) : null;
                 toAdd = !threatsToAdd[p].isEmpty() ? threatsToAdd[p].toArray(new Threat[0]) : null;
                 // Threats to add/remove (includes update) by current player
+                // O( log round ) in theory, O( round ) by api
                 playerThreatsOnDirection[p][directionType].push(row, toRemove, toAdd );
             }
             else {
+                // O( log round ) in theory, O( round ) by api
                 PriorityThreatsTracker.HistoryItem oldData = playerThreatsOnDirection[p][directionType].pop(row);
                 toAdd = oldData != null ? oldData.removed : null;
                 toRemove = oldData != null ? oldData.added : null;
@@ -606,14 +669,14 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
 
             if( toRemove != null ){
                 for ( Threat threat : toRemove ) {
-                    int movesLeft = threat.getMovesLeftCount();
+                    int movesLeft = threat.getMovesLeftCount(); // O(1)
                     if(movesLeft < K && isCandidate(threat) )
                         playerMovesLeftsCount[ p ][ directionType ][ movesLeft ] -= 1;
                 }
             }
             if( toAdd != null ) {
                 for (Threat threat : toAdd) {
-                    int movesLeft = threat.getMovesLeftCount();
+                    int movesLeft = threat.getMovesLeftCount(); // O(1)
                     if (movesLeft < K && isCandidate(threat) )
                         playerMovesLeftsCount[ p ][ directionType ][ movesLeft ] += 1;
                 }
@@ -628,6 +691,9 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
     /**
      * @PreCondition oldThreat must have same color
      * @PostCondition add the old thread to the removes pool and the new threat to the adds pool of respective player owner
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O( 1 )</code></li>
+     * </ul>
      * @param oldThreat
      * @param newThreat
      */
@@ -641,6 +707,9 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
 
     /**
      * @param freeBlock
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O( 1 )</code></li>
+     * </ul>
      */
     public void addToUpdatePool(FreeSegment freeBlock) {
         int[] movesLeft = { K, K};
@@ -656,7 +725,7 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
 
         int playerIndex;
         for (int side = 0; side < 2; side++) {
-            Segment adj = freeBlock.getLinkOnSide(side, 1);
+            Segment adj = freeBlock.getLinkOnSide(side, 1); // O(1)
 
             /**
              * this handle on unmark the following (and its specular) issue:
@@ -672,14 +741,14 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
                 playerIndex = getPlayerIndex(workingCellInfo.color);
                 coords = directionTypeCoordsToMatrixCoords( row, fixRemoveColumns[side], directionType );
                 MNKCell cell = new MNKCell(coords[0], coords[1]); // or a reference just to make it to update later
-                freeToUpdate.add(cell);
-                setMovesLeftAt(playerIndex, directionType, coords[0], coords[1], K);
-                setMovePriority(playerIndex, directionType, coords[0], coords[1], 0 );
+                freeToUpdate.add(cell); // O(1)
+                setMovesLeftAt(playerIndex, directionType, coords[0], coords[1], K); // O(1)
+                setMovePriority(playerIndex, directionType, coords[0], coords[1], 0 ); // O(1)
             }
 
             if( adj instanceof Threat) {
                 Threat threat = (Threat) adj;
-                movesLeft[ side ] = threat.getMovesLeftOnSide(1-side);
+                movesLeft[ side ] = threat.getMovesLeftOnSide(1-side); // O(1)
                 playerIndex = getPlayerIndex(threat.getColor());
                 coords = directionTypeCoordsToMatrixCoords( row, columns[side], directionType );
 
@@ -696,17 +765,29 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
                 }
  */
                 MNKCell cell = new MNKCell(coords[0], coords[1]); // or a reference just to make it to update later
-                freeToUpdate.add(cell);
-                setMovesLeftAt(playerIndex, directionType, coords[0], coords[1], newMovesLeft);
-                setMovePriority(playerIndex, directionType, coords[0], coords[1], newScore );
+                freeToUpdate.add(cell); // O(1)
+                setMovesLeftAt(playerIndex, directionType, coords[0], coords[1], newMovesLeft); // O(1)
+                setMovePriority(playerIndex, directionType, coords[0], coords[1], newScore ); // O(1)
             }
         }
 
 
     }
 
+    /**
+     * Update the free cells that needs to be updated into {@link #freePriorityQueue} based on max priority by each player
+     * Keep traced the max priority of either players.
+     * Keep traced the min moves left of either players, from each updated free cell.
+     * @implNote Cost <ul>
+     *      <li>Time: <code>max{ T({@link PriorityQueue#remove}, N*M), T({@link PriorityQueue#add}, N*M) }</code></li>
+     * </ul>
+     * @see #updateBlockAndAdjacentOnDirection
+     * @see #addToUpdatePool(FreeSegment)
+     */
     public void flushUpdatePool() {
         int min, max, maxS;
+        // freeToUpdate.size is O(c) because is a constant count of cells for each directions
+        // (but cells are unique since it's a Set)
         for( MNKCell cell : freeToUpdate ) {
             min = K;
             max = 0;
@@ -719,8 +800,8 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
             minPlayerMovesLeftCache[ cell.i ][ cell.j ] = min;
             freeCellsPrioritiesCache[ cell.i ][ cell.j ] = max;
             // update cell priority by using available API
-            freePriorityQueue.remove(cell);
-            freePriorityQueue.add(cell);
+            freePriorityQueue.remove(cell); // in theory O(log N*M), as java api O(N*M)
+            freePriorityQueue.add(cell); // in theory O(log N*M)
         }
         freeToUpdate.clear();
     }
@@ -825,7 +906,10 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
 
     /**
      * Update Threat score based on cached scan values after a {@link #updateAdjacent()} operation
-     * @cost.time O(2)
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O( constant ) = O( 1 )</code></li>
+     *      <li>Space: <code>O( constant ) = O( 1 )</code></li>
+     * </ul>
      */
     void updateScore() {
         int streakCount = getStreakCount();
@@ -1113,6 +1197,7 @@ public class PriorityThreatsTracker {
 
     /**
      * Peek the greatest threat, or null if doesn't exists
+     * @implNote Cost Time: <code>O(1)</code>
      * @return
      */
     public Threat peek() {
@@ -1122,7 +1207,7 @@ public class PriorityThreatsTracker {
 
     /**
      * remove items and add new ones to the priority queue.
-     * @cost.time O(log d)
+     * @implNote Cost Time: <code>O( log(player marked cell count)) = O( round )</code>
      * @param row
      * @param threatsToRemove
      * @param threatsToAdd
@@ -1148,9 +1233,9 @@ public class PriorityThreatsTracker {
                 item.added = threatsToAdd;
                 item.removed = threatsToRemove;
                 if(item.removed != null && item.removed.length > 0 )
-                    resultR = pq.removeAll(Set.of(item.removed));
+                    resultR = pq.removeAll(Set.of(item.removed)); // O( log size ) in theory, O( size ) by api
                 if(item.added != null && item.added.length > 0 )
-                    resultA = pq.addAll(Set.of(item.added));
+                    resultA = pq.addAll(Set.of(item.added));  // O( log size )
 
                 if (history.isEmpty()) {
                     item.oldBestRow = -1;
@@ -1172,7 +1257,7 @@ public class PriorityThreatsTracker {
 
     /**
      * Restore priority queue's order on a row, by removing the last added items, and re-adding removed items
-     * @cost.time O(log d)
+     * @implNote Cost Time: <code>O( log(player marked cell count)) = O( round )</code>
      * @param row
      * @return old record of popped items (can be null)
      */
@@ -1190,9 +1275,9 @@ public class PriorityThreatsTracker {
 
         if( item != null ) {
             if (item.added != null && item.added.length > 0)
-                resultR = pq.removeAll(Set.of(item.added));
+                resultR = pq.removeAll(Set.of(item.added)); // O( log size ) in theory, O( size ) by api
             if (item.removed != null && item.removed.length > 0)
-                resultA = pq.addAll(Set.of(item.removed));
+                resultA = pq.addAll(Set.of(item.removed));  // O( log size )
         }
         // item == null case happen only when on first time adding item on a row, but there are no changes, so no rows are added
         // so when push has been called with no addition / deletion

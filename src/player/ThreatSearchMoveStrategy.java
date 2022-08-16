@@ -8,6 +8,33 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 
+/**
+ * This class consider
+ *  <ul>
+ *      <li>T(u) the time cost required for each update in {@link #mark} and {@link #unMark} operations
+ *          <ul>
+ *              <li>Using standard {@link PriorityQueue} API: <code>O( N*M )</code></li>
+ *              <li>Using optimal API: <code>O( log(M+N) )</code></li>
+ *          </ul>
+ *      </li>
+ *      <li>T(it) the time cost required for each iteration while iterating {@link #getMovesCandidates()} result as O( log( M*N )  )</li>
+ *  </ul>
+ * So {@link #search()} find the best next move in
+ *  <ul>
+ *      <li>Worst Case
+ *          <ul>
+ *              <li>Using standard {@link PriorityQueue} API: <code>O( ((M*N)^2 )! ) on worst case</code></li>
+ *              <li>Using optimal API: <code>O( ( (M*N) * log (M+N) )! )</code></li>
+ *          </ul>
+ *      </li>
+ *      <li>Best Case - can happen often, as this class use a move ordering heuristic (see {@link #getMovesCandidates()})
+ *          <ul>
+ *              <li>Using standard {@link PriorityQueue} API: <code>O( √( ((M*N)^2 )! ) )</code></li>
+ *              <li>Using optimal API: <code>O( √( (M*N * log(M+N))! ) )</code></li>
+ *          </ul>
+ *      </li>
+ *  </ul>
+ */
 public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy implements BoardRestorable {
     boolean isCurrentBoardLeftInValidState;
     float estimatedPercentOfTimeRequiredToExit;
@@ -57,6 +84,15 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         return threatDetectionLogic.freeCellsPrioritiesCache;
     }
 
+    /**
+     *
+     * @param M Board rows
+     * @param N Board columns
+     * @param K Number of symbols to be aligned (horizontally, vertically, diagonally) for a win
+     * @param first True if it is the first player, False otherwise
+     * @param timeout_in_secs Maximum amount of time (in seconds) allowed to find a move for {@link #search()}
+     * @implNote Cost <code>max{ O(M*N), {@link ThreatSearchMoveStrategy#init(int, int, int, boolean, int)} }</code>
+     */
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
@@ -69,6 +105,16 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         setInValidState();
     }
 
+    /**
+     * Evaluate the board considering total moves left and best threat's score for both players
+     * @param depth
+     * @param isMyTurn
+     * @return
+     * @implNote Cost <ul>
+     *      <li>Time: <code>O(1)</code></li>
+     *      <li>Space: <code>O(1)</code></li>
+     * </ul>
+     */
     @Override
     protected AlphaBetaOutcome evaluate(int depth, boolean isMyTurn) {
         MNKGameState gameState = currentBoard.gameState();
@@ -83,7 +129,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
             final int[] maxPlayerThreatScores = {0, 0};
             // final int[] totalPlayerScores = {0, 0};
             final int[] weight = new int[]{ 100000, 100000, 1000, 1 };
-
+            // O( 8 * 3 )
             for (int indexPlayer = 0; indexPlayer < 2; indexPlayer++) {
                 for ( int directionType : Utils.DIRECTIONS ) {
                     // computes players score based on moves left count and their weight
@@ -160,8 +206,13 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
 
     /**
-     * Select a position among those listed in the <code>FC</code> array
-     * @return an element of <code>FC</code>
+     * Search the best next move candidate
+     * @PreCondition <ul>
+     *      <li>Call {@link #initSearch(MNKCell[], MNKCell[])} before this method</li>
+     *      <li>Call {@link #postSearch()} after this method</li></ul>
+     * @implNote <pre>Cost: <code>{@link #alphaBetaPruning}</code> with <code>T(u) = T({@link #getMovesCandidates()}.next()) + max{ T({@link ScanThreatDetectionLogic#mark}), T({@link ScanThreatDetectionLogic#unMark} ) }</code>
+     * </pre>
+     * @return the next best move for a player using this strategy
      */
     @Override
     public MNKCell search() {
@@ -218,6 +269,12 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         lastResult = null;
     }
 
+    /**
+     * @implNote Cost <ul>
+     *      <li>Time: <code>max{ T({@link #mark}), T({@link #restore}) }</code></li>
+     *      <li>Space: <code>max{ T({@link #mark}), T({@link #restore}) }</code></li>
+     * </ul>
+     */
     @Override
     public void postSearch() {
         if( Debug.DEBUG_ENABLED ) {
@@ -244,6 +301,11 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         round++;
     }
 
+    /**
+     * Mark the move and update the tracking board
+     * @param marked the move to mark
+     * @implNote Cost <code>T(u)=T({@link ScanThreatDetectionLogic#mark})</code>
+     */
     @Override
     public void mark(MNKCell marked) {
         int markingPlayer = currentBoard.currentPlayer();
@@ -256,6 +318,10 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
     }
 
+    /**
+     * Unmark last move and update the tracking board
+     * @implNote Cost <code>T(u) = T({@link ScanThreatDetectionLogic#unMark})</code>
+     */
     @Override
     public void unMark() {
         MNKCell marked = currentBoard.getLastMarked();
@@ -267,10 +333,23 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         getThreatDetectionLogic().unMark(currentBoard, marked, unMarkingPlayer, 0);
     }
 
+    /**
+     * Provide the moves candidates to process in {@link #alphaBetaPruning} node
+     * @implNote
+     * Call cost <ul>
+     *      <li>Time: <code>O(N*M)</code> where N*M is the count of free cell left</li>
+     *      <li>Space: <code>O(N*M)</code></li>
+     * </ul>
+     * per iteration Cost <ul>
+     *      <li>Time: <code>O({@link PriorityQueue#poll()})=O( log(N*M) ))</code> where N*M is the count of free moves left</li>
+     *      <li>Space: <code>O(N*M)</code></li>
+     * </ul>
+     * @return free moves candidates to be processed at caller board status
+     */
     @Override
     public Iterable<MNKCell> getMovesCandidates() {
         return new Iterable<>() {
-            final PriorityQueue<MNKCell> queue = threatDetectionLogic.getFree();
+            final PriorityQueue<MNKCell> queue = threatDetectionLogic.getFree(); // O(N*M) for copy
             final Iterator<MNKCell> iterator = new Iterator<>() {
                 @Override
                 public boolean hasNext() {
@@ -279,7 +358,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
                 @Override
                 public MNKCell next() {
-                    return queue.poll();
+                    return queue.poll(); // log (N*M)
                 }
             };
 
@@ -340,6 +419,13 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
     }
 
+    /**
+     * Restore the data structures the a valid state, restoring the board state
+     * @implNote Cost: <code>T(u) * LD</code> where <code>LD = {@link #maxDepthSearch} = O(M*N)</code> is the maximum explored depth difference from current round.
+     * if LD is fixed to maxDepthSearch, then it costs O( T(u) ), else O( T(u) * M*N )
+     * @param FC
+     * @param MC
+     */
     @Override
     public void restore(MNKCell[] FC, MNKCell[] MC) {
         restoreTrackingBoard(FC, MC);
