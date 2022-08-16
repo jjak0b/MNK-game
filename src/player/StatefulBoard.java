@@ -7,7 +7,7 @@ import mnkgame.MNKGameState;
 
 import java.math.BigInteger;
 
-public class StatefulBoard extends EBoard {
+public class StatefulBoard extends IndexedBoard {
 
     /**
      * Unique state, hash of the current board

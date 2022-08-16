@@ -10,7 +10,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
     protected float estimatedPercentOfTimeRequiredToExit;
 
-    protected EBoard currentBoard;
+    protected IndexedBoard currentBoard;
 
     protected int[][] corners;
 
@@ -262,7 +262,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
     @Override
     protected void initTrackingBoard(int M, int N, int K) {
         try {
-            currentBoard = new StatefulBoard(M, N, K);
+            this.currentBoard = new IndexedBoard(M,N,K);
             super.currentBoard = currentBoard;
         }
         catch (Throwable e ) {
