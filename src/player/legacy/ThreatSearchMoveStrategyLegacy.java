@@ -343,10 +343,6 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
         return null;
     }
 
-    public int getSimulatedRound() {
-        return currentBoard.getMarkedCellsCount();
-    }
-
     /**
      * Select a position among those listed in the <code>FC</code> array
      * @return an element of <code>FC</code>
@@ -521,6 +517,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
         outcome.eval = score;
         outcome.depth = depth;
+        outcome.state = gameState;
         return outcome;
     }
 

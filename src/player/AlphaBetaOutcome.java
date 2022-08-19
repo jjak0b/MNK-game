@@ -1,11 +1,13 @@
 package player;
 
 import mnkgame.MNKCell;
+import mnkgame.MNKGameState;
 
 public class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
     public int eval;
     public MNKCell move;
     public int depth;
+    public MNKGameState state;
 
     public int getWeightedValue() {
         return eval / (Math.max(1, depth));
@@ -15,6 +17,7 @@ public class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
         this.eval = value.eval;
         this.move = value.move;
         this.depth = value.depth;
+        this.state = value.state;
     }
 
     public AlphaBetaOutcome() {
@@ -62,6 +65,7 @@ public class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
                 "eval=" + eval +
                 ", move=" + move +
                 ", depth=" + depth +
+                ", state=" + state +
                 '}';
     }
 }

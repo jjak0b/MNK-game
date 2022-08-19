@@ -231,6 +231,10 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
         );
     }
 
+    public int getSimulatedRound() {
+        return currentBoard.getMarkedCellsCount();
+    }
+
     /**
      * Evaluate the board state and return an outcome
      * @implNote Cost <ul>
@@ -244,6 +248,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     protected AlphaBetaOutcome evaluate(int depth, boolean isMyTurn) {
         MNKGameState gameState = currentBoard.gameState();
         AlphaBetaOutcome outcome = new AlphaBetaOutcome();
+        depth = getSimulatedRound();
 
         int score = STANDARD_SCORES.get(gameState);
 
@@ -255,6 +260,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
 
         outcome.eval = score;
         outcome.depth = depth;
+        outcome.state = gameState;
         return outcome;
     }
 
@@ -301,7 +307,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 mark(move);
 
                 outcome = alphaBetaPruning(!shouldMaximize, a, b, depth + 1, depthLeft - 1, endTime);
-                // outcome.move = move;
+                outcome.move = move;
 
                 unMark();
 
@@ -345,11 +351,33 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     }
 
     public AlphaBetaOutcome min(AlphaBetaOutcome o1, AlphaBetaOutcome o2) {
-        return AlphaBetaOutcome.min(o1, o2);
+        if( o1.state == o2.state ) {
+            return AlphaBetaOutcome.min(o1, o2);
+        }
+        else if( o1.state == STATE_LOSE ) {
+            return o1;
+        }
+        else if( o2.state == STATE_LOSE) {
+            return o2;
+        }
+        else {
+            return AlphaBetaOutcome.min(o1, o2);
+        }
     }
 
     public AlphaBetaOutcome max(AlphaBetaOutcome o1, AlphaBetaOutcome o2) {
-        return AlphaBetaOutcome.max(o1, o2);
+        if( o1.state == o2.state ) {
+            return AlphaBetaOutcome.max(o1, o2);
+        }
+        else if( o1.state == STATE_WIN ) {
+            return o1;
+        }
+        else if( o2.state == STATE_WIN) {
+            return o2;
+        }
+        else {
+            return AlphaBetaOutcome.max(o1, o2);
+        }
     }
 
     /**

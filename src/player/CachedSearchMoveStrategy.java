@@ -39,7 +39,7 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
 
         CachedResult bestOutcome = this.cachedResults.get( key );
         int score;
-        if (bestOutcome != null && depth >= bestOutcome.depth && key.equals(bestOutcome.boardState) ) {
+        if (bestOutcome != null && depthLeft <= bestOutcome.depth && key.equals(bestOutcome.boardState) ) {
             score = bestOutcome.eval;
 
             switch (bestOutcome.type) {
@@ -62,26 +62,20 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
         }
 
         outcome = super.alphaBetaPruning(shouldMaximize, a, b, depth, depthLeft, endTime);
-/*
-        if (System.currentTimeMillis() > endTime) {
-            if( DEBUG_SHOW_INFO )
-                Debug.println("Exiting quickly");
-            throw new TimeoutException("Exiting quickly");
-        }
-*/
-        if( bestOutcome != null && depth >= bestOutcome.depth ) {
+
+        // if( true ) {
             // minimize
             if (outcome.eval <= a) {
-                cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.UPPER_BOUND, key));
+                cachedResults.put(key, new CachedResult(outcome, depthLeft, CachedResult.ValueType.UPPER_BOUND, key));
             }
             // maximize
             else if (outcome.eval >= b) {
-                cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.LOWER_BOUND, key));
+                cachedResults.put(key, new CachedResult(outcome, depthLeft, CachedResult.ValueType.LOWER_BOUND, key));
             }
             else {
-                cachedResults.put(key, new CachedResult(outcome, CachedResult.ValueType.EXACT, key));
+                cachedResults.put(key, new CachedResult(outcome, depthLeft, CachedResult.ValueType.EXACT, key));
             }
-        }
+        // }
 
         return outcome;
     }
@@ -96,19 +90,13 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
 
         public ValueType type;
         public BigInteger boardState;
+        public int depth;
 
-        CachedResult( AlphaBetaOutcome o, ValueType type, BigInteger boardState ) {
+        CachedResult( AlphaBetaOutcome o, int depth, ValueType type, BigInteger boardState ) {
             super(o);
             this.type = type;
             this.boardState = boardState;
-        }
-
-        CachedResult( int value, ValueType type, int depth, BigInteger boardState ) {
-            super();
-            this.type = type;
             this.depth = depth;
-            this.eval = value;
-            this.boardState = boardState;
         }
     }
 }

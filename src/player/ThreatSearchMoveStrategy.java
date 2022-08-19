@@ -119,6 +119,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     protected AlphaBetaOutcome evaluate(int depth, boolean isMyTurn) {
         MNKGameState gameState = currentBoard.gameState();
         AlphaBetaOutcome outcome = new AlphaBetaOutcome();
+        depth = getSimulatedRound();
 
         int score = STANDARD_SCORES.get(gameState);
 
@@ -160,6 +161,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
 
         outcome.eval = score;
         outcome.depth = depth;
+        outcome.state = gameState;
         return outcome;
     }
 
