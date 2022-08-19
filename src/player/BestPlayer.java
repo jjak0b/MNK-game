@@ -37,6 +37,11 @@ public class BestPlayer implements MNKPlayer {
         return "Hotspot";
     }
 
+    @Override
+    public int hashCode() {
+        return playerName().hashCode();
+    }
+
     public void test() {
 
         MNKCell[] candidates;

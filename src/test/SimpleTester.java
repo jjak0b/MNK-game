@@ -53,7 +53,7 @@ public class SimpleTester extends AdvancedMNKPlayerTester {
 
     public static void main(String[] args) {
         AdvancedMNKPlayerTester playerTester = new SimpleTester(2, true);
-        GameTester gameTester = new GameTester(1, playerTester );
+        GameTester gameTester = new GameTester(1, true, playerTester );
         gameTester.main();
     }
 }
