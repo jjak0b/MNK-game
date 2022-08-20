@@ -11,7 +11,8 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
-        cachedResults = new HashMap<>((int) Math.ceil((M*N*K) / 0.75));
+        final int TABLE_SIZE = (int)Math.pow(2,23); //  Math.ceil((M*N*K) / 0.75)
+        cachedResults = new HashMap<>(TABLE_SIZE);
     }
 
     @Override
