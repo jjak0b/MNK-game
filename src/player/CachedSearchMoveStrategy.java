@@ -31,6 +31,23 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
     }
 
     @Override
+    protected AlphaBetaOutcome strategyAsFirst() {
+        AlphaBetaOutcome outcome = super.strategyAsFirst();
+        // Run and gather info on future moves
+        AlphaBetaOutcome outcome2 = iterativeDeepening(
+                true,
+                STANDARD_SCORES.get(STATE_LOSE),
+                STANDARD_SCORES.get(STATE_WIN),
+                this.maxDepthSearch
+        );
+
+        if( outcome2.state == STATE_WIN )
+            return outcome2;
+        else
+            return outcome;
+    }
+
+    @Override
     protected AlphaBetaOutcome alphaBetaPruning(boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) {
 
         int a = alpha;

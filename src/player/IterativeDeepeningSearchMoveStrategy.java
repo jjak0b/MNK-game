@@ -44,21 +44,6 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
         return lastResult.move;
     }
 
-    @Override
-    protected AlphaBetaOutcome strategyAsFirst() {
-        if( DEBUG_START_FIXED_MOVE ) {
-            return super.strategyAsFirst();
-        }
-        else {
-            return iterativeDeepening(
-                    true,
-                    STANDARD_SCORES.get(STATE_LOSE),
-                    STANDARD_SCORES.get(STATE_WIN),
-                    this.maxDepthSearch
-            );
-        }
-    }
-
     public AlphaBetaOutcome iterativeDeepening(boolean shouldMaximize, int a, int b, int maxDepthSearch ) {
 
         long partialStartTime = 0,

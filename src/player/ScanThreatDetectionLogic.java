@@ -928,6 +928,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
         final int[] waysForOpponentToCounterMe = {0, 0};
         final int[] breadthRequiredForWinOnSide = {0, 0};
         final int[] canWinFactor = {0, 0};
+        int canCompleteStreakFactor = 0;
         int[] bonusScore = { 0, 0 }; // bonus score per side
         int[] scenarios = { 0, 0 }; // scenario per side
 
@@ -940,6 +941,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
                         if( streakCount + free >= K
                         || streakCount + freeOnTotal >= K
                         ) {
+                            canCompleteStreakFactor = 1;
                             leftOnSide[ side ] = Math.max(0, K - streakCount);
                             leftOnTotal = Math.min( leftOnTotal, leftOnSide[ side ] );
                             // risky scenario
@@ -956,6 +958,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
                     case 2: // win range is <= breadth 2
                         other = getOtherMarkedOnSide(side);
                         if( (streakCount + free + other >= K) ) {
+                            canCompleteStreakFactor = 1;
                             breadthRequiredForWinOnSide[side] = 2;
                             leftOnSide[ side ] = free;
                             // risky scenario
@@ -967,6 +970,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
                     case 3: // win range is <= breadth 3
                         otherFree = getOtherFreeOnSide(side);
                         if( (streakCount + free + other + otherFree >= K) ) {
+                            canCompleteStreakFactor = 1;
                             breadthRequiredForWinOnSide[side] = 3;
                             leftOnSide[ side ] = free + Math.max(0, K - (streakCount + free + other) );
                             leftOnTotal = Math.min( leftOnTotal, leftOnSide[ side ] );
@@ -1003,7 +1007,7 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
                 scenarios[side] = 3;
             }
 
-            scoreOnSide[side] += canWinFactor[side] * streakCount;
+            scoreOnSide[side] += canCompleteStreakFactor * streakCount;
             bonusScore[ side ] = canWinFactor[side] * (leftOnSide[side] < bonusScoreOnMovesLeft.length
                     ? bonusScoreOnMovesLeft[leftOnSide[side]] : 0);
 
