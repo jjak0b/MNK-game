@@ -48,7 +48,7 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
                     // transposition has a deeper or equal search depth
                     // we can stop here as we already know the value
                     // returned by the evaluation function
-                    return bestOutcome;
+                    return new AlphaBetaOutcome(bestOutcome);
                 case LOWER_BOUND:
                     a = Math.max(a, score);
                     break;
@@ -58,7 +58,8 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
             }
 
             if (b <= a) {
-                return bestOutcome;
+                // cut-off
+                return new AlphaBetaOutcome(bestOutcome);
             }
         }
 
