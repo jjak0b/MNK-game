@@ -349,12 +349,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
      */
     @Override
     public Iterable<MNKCell> getMovesCandidates() {
-        if( overrideMovesIt != null ){
-            Iterable<MNKCell> it = overrideMovesIt;
-            overrideMovesIt = null;
-            return it;
-        }
-        else return new Iterable<>() {
+        return new Iterable<>() {
             final PriorityQueue<MNKCell> queue = new PriorityQueue<>(threatDetectionLogic.getFree()); // O(N*M) for copy
             final Iterator<MNKCell> iterator = new Iterator<>() {
                 @Override
