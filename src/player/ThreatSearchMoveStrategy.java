@@ -41,6 +41,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     int[][] corners;
     MNKCell[] startingRoundFC;
     MNKCell[] startingRoundMC;
+    protected Iterable<MNKCell> overrideMovesIt;
 
     // DEBUG
     public static final boolean DEBUG_SHOW_STREAKS = Debug.Player.DEBUG_SHOW_STREAKS;
@@ -91,7 +92,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
      * @param K Number of symbols to be aligned (horizontally, vertically, diagonally) for a win
      * @param first True if it is the first player, False otherwise
      * @param timeout_in_secs Maximum amount of time (in seconds) allowed to find a move for {@link #search()}
-     * @implNote Cost <code>max{ O(M*N), {@link ThreatSearchMoveStrategy#init(int, int, int, boolean, int)} }</code>
+     * @implNote Cost <code>max{ O(M*N), {@link ThreatSearchMoveStrategy#init(int, int, int, boolean, int)}, {@link Arrays#sort(Object[])} }</code>
      */
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
@@ -103,6 +104,26 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         threatDetectionLogic.init(M, N, K);
 
         setInValidState();
+
+        if( first ) {
+            // set just a higher priority for first round on special positions
+            for (int i = 1; i >= 0; i--) {
+                threatDetectionLogic.updatePriority(playerIndex, M / 2, N / 2, i*2);
+                for ( int[] coords : corners)
+                    threatDetectionLogic.updatePriority(playerIndex, coords[0], coords[1], i);
+                threatDetectionLogic.flushUpdatePool();
+
+                if( i > 0 ) {
+                    PriorityQueue<MNKCell> pq = threatDetectionLogic.getFree();
+                    MNKCell[] ordered = pq.toArray(new MNKCell[0]);
+                    Arrays.sort(ordered, pq.comparator()); // mostly already ordered -> Tim sort << O( MN log MN )
+                    overrideMovesIt = Arrays.asList(ordered);
+                    if( Debug.DEBUG_ENABLED && DEBUG_SHOW_CANDIDATES ) {
+                        Debug.println("Override moves priority for first round:\n "+ overrideMovesIt + "\n" + boardToString());
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -260,7 +281,8 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
             Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
 
         restore(FC, MC);
-        ++round;
+        if( MC.length > 0)
+            ++round;
 
         elapsed += System.currentTimeMillis() - startTime;
         if( DEBUG_SHOW_INFO )
@@ -314,7 +336,6 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         super.mark(marked);
 
         marked = currentBoard.getLastMarked();
-        MNKCellState markState = marked.state;
 
         getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, 0);
 
@@ -327,7 +348,6 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     @Override
     public void unMark() {
         MNKCell marked = currentBoard.getLastMarked();
-        MNKCellState markState = currentBoard.cellState(marked.i, marked.j);
 
         super.unMark();
         int unMarkingPlayer = currentBoard.currentPlayer();
@@ -350,8 +370,13 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
      */
     @Override
     public Iterable<MNKCell> getMovesCandidates() {
-        return new Iterable<>() {
-            final PriorityQueue<MNKCell> queue = threatDetectionLogic.getFree(); // O(N*M) for copy
+        if( overrideMovesIt != null ){
+            Iterable<MNKCell> it = overrideMovesIt;
+            overrideMovesIt = null;
+            return it;
+        }
+        else return new Iterable<>() {
+            final PriorityQueue<MNKCell> queue = new PriorityQueue<>(threatDetectionLogic.getFree()); // O(N*M) for copy
             final Iterator<MNKCell> iterator = new Iterator<>() {
                 @Override
                 public boolean hasNext() {

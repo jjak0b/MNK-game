@@ -79,7 +79,7 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
     }
 
     public PriorityQueue<MNKCell> getFree() {
-        return new PriorityQueue<>(freePriorityQueue);
+        return freePriorityQueue;
     }
 
     public void setMovesLeftAt(int playerIndex, int directionType, int i, int j, int movesLeftCount ) {
@@ -91,6 +91,13 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
     }
     public void setMovePriority(int playerIndex, int directionType, int i, int j, int priority ) {
         freeCellsPriorities[playerIndex][directionType][i][j] = priority;
+    }
+
+    public void updatePriority(int playerIndex, int i, int j, int priority ) {
+        for(int directionType : Utils.DIRECTIONS) {
+            setMovePriority(playerIndex, directionType, i, j, priority );
+        }
+        freeToUpdate.add(new MNKCell(i, j));
     }
 
     public int getMovesLeftAt(int playerIndex, int directionType, int i, int j) {

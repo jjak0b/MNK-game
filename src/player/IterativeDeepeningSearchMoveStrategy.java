@@ -47,12 +47,7 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
     @Override
     protected AlphaBetaOutcome strategyAsFirst() {
         if( DEBUG_START_FIXED_MOVE ) {
-            int[] coords = corners[ 1 ]; // constant for debug
-            if( DEBUG_SHOW_INFO )
-                Debug.println( "First Move: Move to a fixed corner");
-            AlphaBetaOutcome outcome = new AlphaBetaOutcome();
-            outcome.move = new MNKCell( coords[0], coords[1] ); outcome.depth = 0; outcome.eval = 0;
-            return outcome;
+            return super.strategyAsFirst();
         }
         else {
             return iterativeDeepening(
@@ -78,11 +73,17 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
 
         boolean isOutOfTime = false;
 
+        Iterable<MNKCell> moves = overrideMovesIt;
         for (int maxDepth = 1; maxDepth <= maxDepthSearch; maxDepth++) {
 
             partialStartTime = System.currentTimeMillis();
 
             try {
+                /**
+                 * Needed as {@link #getMovesCandidates()} unset {@link overrideMovesIt} on first call
+                 */
+                overrideMovesIt = moves;
+
                 if( DEBUG_SHOW_INFO ) {
                     Debug.println("Start searching up to depth " + maxDepth);
                 }
