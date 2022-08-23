@@ -14,6 +14,12 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
     }
 
     @Override
+    public void initSearch(MNKCell[] FC, MNKCell[] MC) {
+        super.initSearch(FC, MC);
+        this.maxDepthSearch = currentBoard.getFreeCellsCount();
+    }
+
+    @Override
     public MNKCell search() {
         switch ( round ){
             case 0: // move as first
@@ -72,7 +78,7 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
 
         boolean isOutOfTime = false;
 
-        for (int maxDepth = 1; maxDepth < maxDepthSearch; maxDepth++) {
+        for (int maxDepth = 1; maxDepth <= maxDepthSearch; maxDepth++) {
 
             partialStartTime = System.currentTimeMillis();
 
