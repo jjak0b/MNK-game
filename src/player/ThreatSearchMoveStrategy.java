@@ -41,7 +41,6 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     int[][] corners;
     MNKCell[] startingRoundFC;
     MNKCell[] startingRoundMC;
-    protected Iterable<MNKCell> overrideMovesIt;
 
     // DEBUG
     public static final boolean DEBUG_SHOW_STREAKS = Debug.Player.DEBUG_SHOW_STREAKS;
@@ -92,7 +91,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
      * @param K Number of symbols to be aligned (horizontally, vertically, diagonally) for a win
      * @param first True if it is the first player, False otherwise
      * @param timeout_in_secs Maximum amount of time (in seconds) allowed to find a move for {@link #search()}
-     * @implNote Cost <code>max{ O(M*N), {@link ThreatSearchMoveStrategy#init(int, int, int, boolean, int)}, {@link Arrays#sort(Object[])} }</code>
+     * @implNote Cost <code>max{ O(M*N), {@link ThreatSearchMoveStrategy#init(int, int, int, boolean, int)} }</code>
      */
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
@@ -104,26 +103,6 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         threatDetectionLogic.init(M, N, K);
 
         setInValidState();
-
-        if( first ) {
-            // set just a higher priority for first round on special positions
-            for (int i = 1; i >= 0; i--) {
-                threatDetectionLogic.updatePriority(playerIndex, M / 2, N / 2, i*2);
-                for ( int[] coords : corners)
-                    threatDetectionLogic.updatePriority(playerIndex, coords[0], coords[1], i);
-                threatDetectionLogic.flushUpdatePool();
-
-                if( i > 0 ) {
-                    PriorityQueue<MNKCell> pq = threatDetectionLogic.getFree();
-                    MNKCell[] ordered = pq.toArray(new MNKCell[0]);
-                    Arrays.sort(ordered, pq.comparator()); // mostly already ordered -> Tim sort << O( MN log MN )
-                    overrideMovesIt = Arrays.asList(ordered);
-                    if( Debug.DEBUG_ENABLED && DEBUG_SHOW_CANDIDATES ) {
-                        Debug.println("Override moves priority for first round:\n "+ overrideMovesIt + "\n" + boardToString());
-                    }
-                }
-            }
-        }
     }
 
     /**

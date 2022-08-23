@@ -93,13 +93,6 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
         freeCellsPriorities[playerIndex][directionType][i][j] = priority;
     }
 
-    public void updatePriority(int playerIndex, int i, int j, int priority ) {
-        for(int directionType : Utils.DIRECTIONS) {
-            setMovePriority(playerIndex, directionType, i, j, priority );
-        }
-        freeToUpdate.add(new MNKCell(i, j));
-    }
-
     public int getMovesLeftAt(int playerIndex, int directionType, int i, int j) {
         return playerMovesLeft[playerIndex][directionType][i][j];
     }

@@ -58,17 +58,11 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
 
         boolean isOutOfTime = false;
 
-        Iterable<MNKCell> moves = overrideMovesIt;
         for (int maxDepth = 1; maxDepth <= maxDepthSearch; maxDepth++) {
 
             partialStartTime = System.currentTimeMillis();
 
             try {
-                /**
-                 * Needed as {@link #getMovesCandidates()} unset {@link overrideMovesIt} on first call
-                 */
-                overrideMovesIt = moves;
-
                 if( DEBUG_SHOW_INFO ) {
                     Debug.println("Start searching up to depth " + maxDepth);
                 }
