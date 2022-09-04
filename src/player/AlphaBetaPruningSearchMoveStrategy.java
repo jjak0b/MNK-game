@@ -329,7 +329,8 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 if( bestOutcome.move == outcome.move || bestOutcome.move == null)
                     bestOutcome.move = move;
 
-                if (System.currentTimeMillis() > endTime) {
+                // estimate 1ms per depth (Upperbound) required to exit
+                if (System.currentTimeMillis() + depth >= endTime ) {
                     if( DEBUG_SHOW_INFO )
                         Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
                     // NOTE: this behavior can be obtained converting this recursive function to an iterative one
