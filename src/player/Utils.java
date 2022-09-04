@@ -70,6 +70,13 @@ public class Utils {
         }
     }
 
+    public static MNKCellState getPlayerMark(int playerIndex) {
+        switch (playerIndex) {
+            case 0: return MNKCellState.P1;
+            case 1: return MNKCellState.P2;
+            default: return MNKCellState.FREE;
+        }
+    }
     public static int getPlayerIndex(MNKCellState state) {
         switch (state) {
             case P1: return 0;
@@ -225,6 +232,58 @@ public class Utils {
 
     public static MNKCell getLastMarked(Board board) {
         return board.getLastMarked();
+    }
+
+
+    public static class MatrixRowMap {
+        final int M, N;
+        // fast access to array index to matrix indexes map conversion, avoid use of a lot of runtime multiplications
+        protected final int[][] arrayToMatrixIndexMap;
+        protected final int[][] matrixToArrayIndexMap;
+
+        /**
+         * @param M Matrix rows
+         * @param N Matrix columns
+         */
+        public MatrixRowMap(int M, int N) {
+            this.M = M;
+            this.N = N;
+            final int count = M * N;
+            arrayToMatrixIndexMap = new int[count][2];
+            matrixToArrayIndexMap = new int[M][N];
+            initIndexConversionsMaps();
+        }
+
+        private void initIndexConversionsMaps() {
+            int arrayIndex = 0;
+            for (int i = 0; i < M; i++) {
+                for (int j = 0; j < N; j++) {
+                    matrixToArrayIndexMap[ i ][ j ] = arrayIndex;
+
+                    arrayToMatrixIndexMap[arrayIndex][0] = i;
+                    arrayToMatrixIndexMap[arrayIndex][1] = j;
+
+                    arrayIndex++;
+                }
+            }
+        }
+
+        public int getArrayIndexFromMatrixIndexes(int i, int j) {
+            // return (i * M) + j;
+            // return matrixToArrayIndexMap[i][j];
+            return (i * M) + j;
+        }
+
+        public int[] getMatrixIndexesFromArrayIndex(int index) {
+            return arrayToMatrixIndexMap[index];
+        }
+
+        public int[] getMatrixIndexesFromArrayIndex(int index, int[] buffer ) {
+            // buffer[0] = index / M;
+            // buffer[1] = index % M;
+            Vectors.vectorCopy(buffer, arrayToMatrixIndexMap[index] );
+            return buffer;
+        }
     }
 
     public static class ConsoleColors {

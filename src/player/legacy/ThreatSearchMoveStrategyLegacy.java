@@ -11,8 +11,6 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
     protected float estimatedPercentOfTimeRequiredToExit;
 
-    protected IndexedBoard currentBoard;
-
     protected int[][] corners;
 
     boolean isCurrentBoardLeftInValidState;
@@ -28,6 +26,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
     // threat weights for free cells, first dimension is the player index
     protected Utils.Weight[][][] weights;
 
+    protected Utils.MatrixRowMap matrixMap;
     // cellsIds[ i ] = id
     protected Integer[] cellsIds;
     // flag that indicates free cells buffer must be sorted
@@ -69,8 +68,8 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
         @Override
         public int compare(Integer id1, Integer id2) {
-            final int[] p1 = currentBoard.getMatrixIndexesFromArrayIndex(id1);
-            final int[] p2 = currentBoard.getMatrixIndexesFromArrayIndex(id2);
+            final int[] p1 = matrixMap.getMatrixIndexesFromArrayIndex(id1);
+            final int[] p2 = matrixMap.getMatrixIndexesFromArrayIndex(id2);
             int diff = 0;
 
             for (int j = 0; j < 2; j++) {
@@ -123,6 +122,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
         super.init(M, N, K, first, timeout_in_secs);
 
+        matrixMap = new Utils.MatrixRowMap(M, N);
         threatDetectionLogic = new ScanThreatDetectionLogicLegacy() {
 
             @Override
@@ -158,10 +158,6 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
             initOnFirst(M, N, K);
     }
 
-    protected void setBoard(IndexedBoard board) {
-        this.currentBoard = board;
-        super.setBoard(board);
-    }
 
     /**
      * Callback called on #initPlayer if start as first player.
@@ -261,17 +257,6 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
         for (int indexPlayer = 0; indexPlayer < 2; indexPlayer++) {
             // heatmap comparators for descending order
             freeCellsIdsComparators[indexPlayer] = new PlayerMoveComparator(indexPlayer);
-        }
-    }
-
-    // prioritize cells to pick based on a sort of heatmap
-    @Override
-    protected void initTrackingBoard(int M, int N, int K) {
-        try {
-            setBoard(new IndexedBoard(M,N,K));
-        }
-        catch (Throwable e ) {
-            Debug.println("Error on init board " + e);
         }
     }
 
@@ -610,7 +595,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
         // update target's weight on remove
         addDirty(marked.i, marked.j);
 
-        getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, 0);
+        getThreatDetectionLogic().mark(marked, markingPlayer, 0);
 
         finishDirty(true);
     }
@@ -627,7 +612,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
 
         addDirty( marked.i, marked.j);
 
-        getThreatDetectionLogic().unMark(currentBoard, marked, unMarkingPlayer, 0);
+        getThreatDetectionLogic().unMark(marked, unMarkingPlayer, 0);
 
         finishDirty(false);
     }
@@ -640,7 +625,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
         }
         MNKCell[] buffer = new MNKCell[freeCellsCount];
         for (int i = 0; i < freeCellsCount; i++) {
-            int[] position = currentBoard.getMatrixIndexesFromArrayIndex(cellsIds[i]);
+            int[] position = matrixMap.getMatrixIndexesFromArrayIndex(cellsIds[i]);
             buffer[i] = new MNKCell(position[0], position[1]);
         }
 
@@ -653,7 +638,7 @@ public class ThreatSearchMoveStrategyLegacy extends AlphaBetaPruningSearchMoveSt
     }
 
     private void addDirty( int i , int j) {
-        dirtyCellsIds[dirtyCellsIndexesCount] = currentBoard.getArrayIndexFromMatrixIndexes(i, j);
+        dirtyCellsIds[dirtyCellsIndexesCount] = matrixMap.getArrayIndexFromMatrixIndexes(i, j);
         dirtyCellsIndexesCount++;
         shouldSortCellsIds = true;
 

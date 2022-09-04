@@ -49,6 +49,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     public static final boolean DEBUG_SHOW_CANDIDATES = Debug.Player.DEBUG_SHOW_CANDIDATES;
     public static final boolean DEBUG_START_FIXED_MOVE = Debug.Player.DEBUG_START_FIXED_MOVE;
 
+    protected EBoardWithGameEnd currentBoard;
     protected final ScanThreatDetectionLogic threatDetectionLogic = new ScanThreatDetectionLogic();
 
     public ThreatSearchMoveStrategy() {
@@ -103,6 +104,31 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         threatDetectionLogic.init(M, N, K);
 
         setInValidState();
+    }
+
+    @Override
+    protected void initTrackingBoard(int M, int N, int K) {
+        setBoard(new EBoardWithGameEnd(M, N, K) {
+            @Override
+            boolean isGameEnded() {
+                // int maxStreak = 0;
+                int threatCountWihtNoMoveLeft = 0;
+                for ( int directionType : Utils.DIRECTIONS ) {
+                    int[] movesLeftCount = threatDetectionLogic.getMovesLeftArrayCount(currentPlayer, directionType);
+                    threatCountWihtNoMoveLeft = Math.max(threatCountWihtNoMoveLeft, movesLeftCount[0]);
+                    // ThreatInfo threat = detectionLogic.getBestThreat(currentPlayer, directionType);
+                    // if( threat != null) maxStreak = Math.max( maxStreak, threat.getStreakCount() );
+                }
+
+                // maxStreak >= K
+                return threatCountWihtNoMoveLeft > 0;
+            }
+        });
+    }
+
+    protected void setBoard(EBoardWithGameEnd board) {
+        this.currentBoard = board;
+        super.setBoard(board);
     }
 
     /**
@@ -212,7 +238,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
      * @PreCondition <ul>
      *      <li>Call {@link #initSearch(MNKCell[], MNKCell[])} before this method</li>
      *      <li>Call {@link #postSearch()} after this method</li></ul>
-     * @implNote <pre>Cost: <code>{@link #alphaBetaPruning}</code> with <code>T(u) = T({@link #getMovesCandidates()}.next()) + max{ T({@link ScanThreatDetectionLogic#mark}), T({@link ScanThreatDetectionLogic#unMark} ) }</code>
+     * @implNote <pre>Cost: <code>{@link #alphaBetaPruning}</code> with <code>T(u) = T({@link #getMovesCandidates()}.next()) + max{ T({@link ThreatDetectionLogic#mark}), T({@link ThreatDetectionLogic#unMark} ) }</code>
      * </pre>
      * @return the next best move for a player using this strategy
      */
@@ -307,31 +333,28 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     /**
      * Mark the move and update the tracking board
      * @param marked the move to mark
-     * @implNote Cost <code>T(u)=T({@link ScanThreatDetectionLogic#mark})</code>
+     * @implNote Cost <code>T(u)=T({@link ThreatDetectionLogic#mark})</code>
      */
     @Override
     public void mark(MNKCell marked) {
         int markingPlayer = currentBoard.currentPlayer();
+        MNKCell markedCell = new MNKCell(marked.i, marked.j, Utils.getPlayerMark(markingPlayer));
+        getThreatDetectionLogic().mark(markedCell, markingPlayer, 0);
+
         super.mark(marked);
-
-        marked = currentBoard.getLastMarked();
-
-        getThreatDetectionLogic().mark(currentBoard, marked, markingPlayer, 0);
-
     }
 
     /**
      * Unmark last move and update the tracking board
-     * @implNote Cost <code>T(u) = T({@link ScanThreatDetectionLogic#unMark})</code>
+     * @implNote Cost <code>T(u) = T({@link ThreatDetectionLogic#unMark})</code>
      */
     @Override
     public void unMark() {
         MNKCell marked = currentBoard.getLastMarked();
+        int unMarkingPlayer = Utils.getPlayerIndex(marked.state);
+        getThreatDetectionLogic().unMark(marked, unMarkingPlayer, 0);
 
         super.unMark();
-        int unMarkingPlayer = currentBoard.currentPlayer();
-
-        getThreatDetectionLogic().unMark(currentBoard, marked, unMarkingPlayer, 0);
     }
 
     /**

@@ -1,33 +1,43 @@
 package player;
 
+import mnkgame.MNKCell;
+
 import java.math.BigInteger;
 import java.util.HashMap;
 
 public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrategy {
 
-    protected StatefulBoard currentBoard;
+    protected HashableBoardState currentState;
+    protected Utils.MatrixRowMap matrixMap;
     private HashMap<BigInteger, CachedResult> cachedResults;
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
+
+        matrixMap = new Utils.MatrixRowMap(M, N);
+        currentState = new HashableBoardState();
+
         final int TABLE_SIZE = (int)Math.pow(2,23); //  Math.ceil((M*N*K) / 0.75)
         cachedResults = new HashMap<>(TABLE_SIZE);
     }
 
     @Override
-    protected void initTrackingBoard(int M, int N, int K) {
-        try {
-            setBoard(new StatefulBoard(M, N, K));
-        }
-        catch (Throwable e ) {
-            Debug.println("Error on init board " + e);
-        }
+    public void mark(MNKCell marked) {
+        int markingPlayer = currentBoard.currentPlayer();
+        currentState.toggle(markingPlayer, matrixMap.getArrayIndexFromMatrixIndexes(marked.i, marked.j) );
+        super.mark(marked);
     }
 
-    protected void setBoard(StatefulBoard board) {
-        this.currentBoard = board;
-        super.setBoard(board);
+    @Override
+    public void unMark() {
+        if(currentBoard.getMarkedCellsCount() > 0) {
+            MNKCell oldc = currentBoard.getLastMarked();
+            int unMarkingPlayer = Utils.getPlayerIndex(oldc.state);
+            currentState.toggle(unMarkingPlayer, matrixMap.getArrayIndexFromMatrixIndexes(oldc.i, oldc.j) );
+        }
+
+        super.unMark();
     }
 
     @Override
@@ -52,7 +62,7 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
 
         int a = alpha;
         int b = beta;
-        BigInteger key = currentBoard.getCurrentState();
+        BigInteger key = currentState.getCurrentState();
         AlphaBetaOutcome outcome;
 
         CachedResult bestOutcome = this.cachedResults.get( key );

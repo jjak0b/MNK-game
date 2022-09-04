@@ -59,7 +59,7 @@ public abstract class ScanThreatDetectionLogicLegacy implements ThreatDetectionL
     }
 
     @Override
-    public void mark(Board tree, MNKCell marked, int markingPlayer, int depth) {
+    public void mark(MNKCell marked, int markingPlayer, int depth) {
 
         // Link the adjacent cells
 /*
@@ -99,7 +99,7 @@ public abstract class ScanThreatDetectionLogicLegacy implements ThreatDetectionL
     }
 
     @Override
-    public void unMark(Board tree, MNKCell marked, int unMarkingPlayer, int depth) {
+    public void unMark(MNKCell marked, int unMarkingPlayer, int depth) {
         // Unlink the adjacent cells
 /*
         UnionFindUndo<MNKCell>[] comboMap = getPlayerCombos(unMarkingPlayer);

@@ -370,13 +370,12 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
      * </ul>
      *
      * @implNote Because of {@link PriorityQueue#remove} API, it require linear time, but same operation on different {@link PriorityQueue} API could be done in log time
-     * @param tree
      * @param marked
      * @param markingPlayer
      * @param depth
      */
     @Override
-    public void mark(Board tree, MNKCell marked, int markingPlayer, int depth) {
+    public void mark(MNKCell marked, int markingPlayer, int depth) {
         int playerIndex = getPlayerIndex(marked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
             Threat result = updateBlockAndAdjacentOnDirection(playerIndex, marked, directionType, marked.state, true );
@@ -396,13 +395,12 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
      *      </ul></li>
      * </ul>
      * @implNote Because of {@link PriorityQueue#remove} API, it require linear time, but same operation on different {@link PriorityQueue} API could be done in log time
-     * @param tree
      * @param oldMarked
      * @param unMarkingPlayer
      * @param depth
      */
     @Override
-    public void unMark(Board tree, MNKCell oldMarked, int unMarkingPlayer, int depth) {
+    public void unMark(MNKCell oldMarked, int unMarkingPlayer, int depth) {
         int playerIndex = getPlayerIndex(oldMarked.state);
         for ( int directionType : Utils.DIRECTIONS ) {
             Threat result = updateBlockAndAdjacentOnDirection(playerIndex, oldMarked, directionType, MNKCellState.FREE, false );
@@ -981,8 +979,12 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
         // add score based on the streak scenario per side
         for (int side = 0; side < 2; side++) {
             scoreOnSide[ side ] = 0;
+            // scenario 0;: win
+            if (leftOnTotal <= 0 ) {
+                scenarios[side] = 0;
+            }
             // scenario 1: 1 move left in any breadth
-            if (leftOnSide[side] == 1 ) {
+            else if (leftOnSide[side] == 1 ) {
                 scenarios[side] = 1;
             }
             // scenario 2: 2 moves left and breadth[side] == 1
@@ -1007,6 +1009,9 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
             // Debug.println("debug streak side " + side + " of streak: " + this + "\n can win: " + canWinFactor[side] + "\n" + getFreeOnSide(side) + " - " + getOtherMarkedOnSide(side) + " - " + getOtherFreeOnSide(side) );
             // Debug.println("bonus score: \n scenario:" + scenarios[side] + "\nbonus:" + bonusScore[side]);
             switch (scenarios[side]) {
+                case 0:
+                    scoreOnSide[side] = Integer.MAX_VALUE / 2;
+                    break;
                 case 1:
                 case 2:
                     scoreOnSide[side] += bonusScore[ side ];
