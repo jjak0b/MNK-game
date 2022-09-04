@@ -278,9 +278,11 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         startingRoundMC = MC;
 
         // pre calculate expected work time
-        long expectedTimeRequiredToExit = (long) (estimatedPercentOfTimeRequiredToExit * timeout);
+        float realTimeout = (float)timeout * (98f/100f);
+        float expectedTimeRequiredToExit = (estimatedPercentOfTimeRequiredToExit * realTimeout);
+
         startTime = System.currentTimeMillis();
-        expectedEndTime = startTime + (long) ( timeout * (99.0/100.0)) - expectedTimeRequiredToExit;
+        expectedEndTime = startTime + (long) ( realTimeout - expectedTimeRequiredToExit );
 
         if( DEBUG_SHOW_INFO )
             Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
