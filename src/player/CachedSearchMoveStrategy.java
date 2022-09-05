@@ -4,12 +4,26 @@ import mnkgame.MNKCell;
 
 import java.math.BigInteger;
 import java.util.HashMap;
+import java.util.TreeMap;
 
+/**
+ * This class assign a transposition table for each bucket.
+ * The max buckets count is n = M * N.
+ * Each bucket contains all possible tree's nodes states per round (tree's depth).
+ * The k-th bucket could have up to n!/(n-k)! evaluated nodes (called "Transposition"). ( k=1: n; k=2: n(n-1); ...; k=n: n! )-
+ * This class implements an optimization: removes unnecessary buckets so free up memory.
+ *
+ * On round k, the  k-1 buckets, which store the old transpositions, are useless.
+ * So the (k-1)-th bucket will be removed
+ * on {@link #postSearch()} if {@link #isStateValid()} == false
+ * or on {@link #restore} otherwise
+ */
 public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrategy {
 
     protected HashableBoardState currentState;
     protected Utils.MatrixRowMap matrixMap;
-    private HashMap<BigInteger, CachedResult> cachedResults;
+    protected TreeMap<Integer, HashMap<BigInteger, TranspositionData>> transpositionsMap;
+    protected int TABLE_SIZE;
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
@@ -17,9 +31,57 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
 
         matrixMap = new Utils.MatrixRowMap(M, N);
         currentState = new HashableBoardState();
+        TABLE_SIZE = (int)Math.pow(2,23); //  Math.ceil((M*N*K) / 0.75)
+        transpositionsMap = new TreeMap<>(Integer::compare);
+    }
 
-        final int TABLE_SIZE = (int)Math.pow(2,23); //  Math.ceil((M*N*K) / 0.75)
-        cachedResults = new HashMap<>(TABLE_SIZE);
+    /**
+     * Return the k-th transposition table associated to the k-th bucket, relative to k-th round.
+     * If doesn't exists, then this will create and assign it first with a starting capacity.
+     * @implNote Cost <ul>
+     *      <li>Time: <code>T(#{@link TreeMap#get})=</code>
+     *      <ul>
+     *          <li><code>O( log( M*N-{@link #round}) ) = O({@link #maxDepthSearch})</code> if {@link #flushTranspositionTable()} is called before the next {@link #alphaBetaPruning} call</li>
+     *          <li><code>O( log( M*N ) )</code> otherwise</li>
+     *      </ul>
+     *      </li>
+     * </ul>
+     * @see IterativeDeepeningSearchMoveStrategy#initSearch
+     * @return The k-th transposition table
+     */
+    protected HashMap<BigInteger, TranspositionData> getTranspositionTable() {
+        return transpositionsMap.computeIfAbsent(getSimulatedRound(), age -> {
+            TABLE_SIZE = currentBoard.getFreeCellsCount(); // M*N - age
+            return new HashMap<>(TABLE_SIZE);
+        });
+    }
+
+    /**
+     * Clear, remove and free up the transposition table associated up to the k-th bucket, relative to the real k-th round
+     * @PreCondition: {{@link #isStateValid()}} must be true before calling this
+     * @implNote Cost <ul>
+     *      <li>Time: <code>T(max { {@link TreeMap#headMap}, {@link TreeMap#remove} }) = O( log( M*N ) )</code></li>
+     * </ul>
+     */
+    protected void flushTranspositionTable() {
+        transpositionsMap.headMap(round).clear();
+        transpositionsMap.remove(round);
+    }
+
+    @Override
+    public void restore(MNKCell[] FC, MNKCell[] MC) {
+        super.restore(FC, MC);
+        flushTranspositionTable();
+    }
+
+    @Override
+    public void postSearch() {
+        super.postSearch();
+
+        // The flushing may require some time, so it will be done on next round if we just have been out of time
+        if( isStateValid() ) {
+            flushTranspositionTable();
+        }
     }
 
     @Override
@@ -58,17 +120,16 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
     }
 
     @Override
-    protected AlphaBetaOutcome alphaBetaPruning(boolean shouldMaximize, int alpha, int beta, int depth, int depthLeft, long endTime) {
+    protected AlphaBetaOutcome alphaBetaPruning(boolean shouldMaximize, int a, int b, int depth, int depthLeft, long endTime) {
+        // int aOriginal = a, bOriginal = b;
 
-        int a = alpha;
-        int b = beta;
         BigInteger key = currentState.getCurrentState();
         AlphaBetaOutcome outcome;
+        HashMap<BigInteger, TranspositionData> table = getTranspositionTable();
+        TranspositionData bestOutcome = table.get( key );
 
-        CachedResult bestOutcome = this.cachedResults.get( key );
-        int score;
         if (bestOutcome != null && depthLeft <= bestOutcome.depth && key.equals(bestOutcome.boardState) ) {
-            score = bestOutcome.eval;
+            int score = bestOutcome.eval;
 
             switch (bestOutcome.type) {
                 case EXACT:
@@ -92,24 +153,23 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
 
         outcome = super.alphaBetaPruning(shouldMaximize, a, b, depth, depthLeft, endTime);
 
-        // if( true ) {
-            // minimize
-            if (outcome.eval <= a) {
-                cachedResults.put(key, new CachedResult(outcome, depthLeft, CachedResult.ValueType.UPPER_BOUND, key));
-            }
-            // maximize
-            else if (outcome.eval >= b) {
-                cachedResults.put(key, new CachedResult(outcome, depthLeft, CachedResult.ValueType.LOWER_BOUND, key));
-            }
-            else {
-                cachedResults.put(key, new CachedResult(outcome, depthLeft, CachedResult.ValueType.EXACT, key));
-            }
-        // }
+
+        // minimize
+        if (outcome.eval <= a) {
+            table.put(key, new TranspositionData(outcome, depthLeft, TranspositionData.ValueType.UPPER_BOUND, key));
+        }
+        // maximize
+        else if (b <= outcome.eval) {
+            table.put(key, new TranspositionData(outcome, depthLeft, TranspositionData.ValueType.LOWER_BOUND, key));
+        }
+        else {
+            table.put(key, new TranspositionData(outcome, depthLeft, TranspositionData.ValueType.EXACT, key));
+        }
 
         return outcome;
     }
 
-    public static class CachedResult extends AlphaBetaOutcome {
+    public static class TranspositionData extends AlphaBetaOutcome {
 
         public enum ValueType {
             EXACT,
@@ -121,7 +181,7 @@ public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrate
         public BigInteger boardState;
         public int depth;
 
-        CachedResult( AlphaBetaOutcome o, int depth, ValueType type, BigInteger boardState ) {
+        TranspositionData(AlphaBetaOutcome o, int depth, ValueType type, BigInteger boardState) {
             super(o);
             this.type = type;
             this.boardState = boardState;
