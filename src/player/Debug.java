@@ -17,15 +17,15 @@ public final class Debug {
     // singleton class used by players for debug
     public static final class Player {
         // DEBUG
-        public static final boolean DEBUG_START_FIXED_MOVE = false;
-        public static final boolean DEBUG_SHOW_INFO = true;
-        public static final boolean DEBUG_SHOW_DECISION_INFO = true;
-        public static final boolean DEBUG_SHOW_BOARD = true;
-        public static final boolean DEBUG_SHOW_STATS = true;
-        public static final boolean DEBUG_SHOW_STREAKS = true;
-        public static final boolean DEBUG_SHOW_USEFUL = true;
-        public static final boolean DEBUG_SHOW_WEIGHTS = true;
-        public static final boolean DEBUG_SHOW_CANDIDATES = true;
-        public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = false;
+        public static final boolean DEBUG_START_FIXED_MOVE = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_INFO = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_DECISION_INFO = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_BOARD = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_STATS = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_STREAKS = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_USEFUL = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_WEIGHTS = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_CANDIDATES = DEBUG_ENABLED && false;
+        public static final boolean DEBUG_SHOW_MOVES_RESULT_ON_ROOT = DEBUG_ENABLED && false;
     }
 }
