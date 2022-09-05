@@ -75,7 +75,7 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
                 if( DEBUG_SHOW_INFO ) {
                     Debug.println("Start searching up to depth " + maxDepth);
                 }
-                outcome = alphaBetaPruning(
+                outcome = super.alphaBetaPruning(
                         shouldMaximize,
                         a,
                         b,
