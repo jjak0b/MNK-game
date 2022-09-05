@@ -2,10 +2,10 @@ package test;
 
 import mnkgame.*;
 
-import java.util.Arrays;
 import java.util.concurrent.*;
 
 public abstract class AdvancedMNKPlayerTester {
+    private int      SAFE_TIMEOUT;
     private int     TIMEOUT = 10;
     private int     ROUNDS  = 1;
     private boolean VERBOSE = false;
@@ -42,8 +42,9 @@ public abstract class AdvancedMNKPlayerTester {
         WINP1, WINP2, DRAW, ERRP1, ERRP2;
     }
 
-    public AdvancedMNKPlayerTester(int timeout, boolean verbose) {
+    public AdvancedMNKPlayerTester(int timeout, boolean verbose, int graceTime) {
         this.TIMEOUT = timeout;
+        this.SAFE_TIMEOUT = TIMEOUT + graceTime;
         this.VERBOSE = verbose;
     }
 
@@ -74,7 +75,7 @@ public abstract class AdvancedMNKPlayerTester {
             final Future future = executor.submit(initPlayer);
             executor.shutdown();
             try {
-                future.get(TIMEOUT, TimeUnit.SECONDS);
+                future.get(SAFE_TIMEOUT, TimeUnit.SECONDS);
             }
             catch (TimeoutException e) {
                 System.err.println("Error: " + Player[i].playerName() + " interrupted: initialization takes too much time");
@@ -100,14 +101,14 @@ public abstract class AdvancedMNKPlayerTester {
             MNKCell c = null;
 
             try {
-                c = task.get(TIMEOUT, TimeUnit.SECONDS);
+                c = task.get(SAFE_TIMEOUT, TimeUnit.SECONDS);
             }
             catch(TimeoutException ex) {
                 int n = 3; // Wait some more time to see if it stops
                 System.err.println("Player " + (curr+1) + " (" + Player[curr].playerName() + ") interrupted due to timeout");
                 while(!task.isDone() && n > 0) {
                     System.err.println("Waiting for " + Player[curr].playerName() + " to stop ... (" + n + ")");
-                    try {Thread.sleep(TIMEOUT*1000);} catch(InterruptedException e) {}
+                    try {Thread.sleep(SAFE_TIMEOUT*1000);} catch(InterruptedException e) {}
                     n--;
                 }
 
@@ -125,7 +126,7 @@ public abstract class AdvancedMNKPlayerTester {
                 System.err.println(" " + ex);
                 while(!task.isDone() && n > 0) {
                     System.err.println("Waiting for " + Player[curr].playerName() + " to stop ... (" + n + ")");
-                    try {Thread.sleep(TIMEOUT*1000);} catch(InterruptedException e) {}
+                    try {Thread.sleep(SAFE_TIMEOUT*1000);} catch(InterruptedException e) {}
                     n--;
                 }
 

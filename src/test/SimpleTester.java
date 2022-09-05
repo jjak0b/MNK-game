@@ -37,8 +37,8 @@ public class SimpleTester extends AdvancedMNKPlayerTester {
             BestPlayerLegacy.class
     };
 
-    public SimpleTester(int TIMEOUT, boolean VERBOSE) {
-        super(TIMEOUT, VERBOSE);
+    public SimpleTester(int TIMEOUT, boolean VERBOSE, int graceTime) {
+        super(TIMEOUT, VERBOSE, graceTime);
     }
 
     @Override
@@ -52,7 +52,7 @@ public class SimpleTester extends AdvancedMNKPlayerTester {
     }
 
     public static void main(String[] args) {
-        AdvancedMNKPlayerTester playerTester = new SimpleTester(2, true);
+        AdvancedMNKPlayerTester playerTester = new SimpleTester(2, true, 0);
         GameTester gameTester = new GameTester(1, true, playerTester );
         gameTester.main();
     }

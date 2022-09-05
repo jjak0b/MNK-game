@@ -15,8 +15,8 @@ public class HeavyTester extends AdvancedMNKPlayerTester {
             CachedSearchMoveStrategyLegacy.class
     };
 
-    public HeavyTester(int TIMEOUT, boolean VERBOSE) {
-        super(TIMEOUT, VERBOSE);
+    public HeavyTester(int TIMEOUT, boolean VERBOSE, int graceTime) {
+        super(TIMEOUT, VERBOSE, graceTime);
     }
 
     @Override
@@ -30,7 +30,7 @@ public class HeavyTester extends AdvancedMNKPlayerTester {
     }
 
     public static void main(String[] args) {
-        AdvancedMNKPlayerTester playerTester = new HeavyTester(1, true);
+        AdvancedMNKPlayerTester playerTester = new HeavyTester(1, true, 0);
         GameTester gameTester = new GameTester(1, true, playerTester );
         gameTester.main();
     }
