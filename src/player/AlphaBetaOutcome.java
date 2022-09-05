@@ -21,7 +21,7 @@ public class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
     }
 
     public AlphaBetaOutcome() {
-
+        state = MNKGameState.OPEN;
     }
 
     @Override

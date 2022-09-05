@@ -5,18 +5,26 @@ import mnkgame.MNKCell;
 public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrategy {
 
     public static final boolean DEBUG_SHOW_DECISION_INFO = Debug.Player.DEBUG_SHOW_DECISION_INFO;
+    protected int lastMaxDepth;
+
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
         this.maxDepthSearch = M * N;
         this.USE_FAST_REWIND = true;
+        this.lastMaxDepth = 0;
     }
 
     @Override
     public void initSearch(MNKCell[] FC, MNKCell[] MC) {
+        // pre calculate expected work time
         super.initSearch(FC, MC);
         this.maxDepthSearch = currentBoard.getFreeCellsCount();
+
+        float expectedTimeRequiredToExit = (estimatedPercentOfTimeRequiredToExit * timeout)
+                + lastMaxDepth*(float)Math.log( Math.max(currentBoard.getFreeCellsCount(), currentBoard.getMarkedCellsCount()));
+        expectedEndTime = realEndTime - (long)expectedTimeRequiredToExit;
     }
 
     @Override
@@ -54,10 +62,11 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
         // we assume are already in valid state
         // setInValidState();
 
-        AlphaBetaOutcome outcome = null;
+        AlphaBetaOutcome outcome = new AlphaBetaOutcome();
+        outcome.move = threatDetectionLogic.getFree().peek();
 
         boolean isOutOfTime = false;
-
+        lastMaxDepth = 1;
         for (int maxDepth = 1; maxDepth <= maxDepthSearch; maxDepth++) {
 
             partialStartTime = System.currentTimeMillis();
@@ -74,6 +83,8 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
                         maxDepth,
                         expectedEndTime
                 );
+                // keep last depth that don't cause an EarlyExit
+                lastMaxDepth = maxDepth;
                 if( DEBUG_SHOW_DECISION_INFO ){
                     Debug.println(Utils.ConsoleColors.CYAN +
                             "Search up to depth " + maxDepth + " end with choice :" + outcome
@@ -93,10 +104,12 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
 
             if (isOutOfTime) {
                 if( DEBUG_SHOW_INFO ) {
-                    long leftTime = expectedEndTime - partialEndTime;
+                    long timeLeftReal = realEndTime - partialEndTime;
+                    long timeLeftFromPrediction = expectedEndTime - partialEndTime;
                     Debug.println(Utils.ConsoleColors.RED +
                             "Exit quickly due to timeout on depth " + maxDepth +
-                            ". Time left = " + leftTime + Utils.ConsoleColors.RESET
+                            "; Time left from prediction (ms) = " + timeLeftFromPrediction +
+                            "; Time left real (ms) = " + timeLeftReal + Utils.ConsoleColors.RESET
                     );
                 }
                 break;

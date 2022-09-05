@@ -31,6 +31,8 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     protected long startTime;
     protected long expectedEndTime;
     protected long endTime;
+    protected long realEndTime;
+
     // stats
     protected float wTotalWorkTime;
     protected float wTotalWeights;
@@ -146,7 +148,8 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     @Override
     public void initSearch(MNKCell[] FC, MNKCell[] MC) {
         startTime = System.currentTimeMillis();
-        expectedEndTime = startTime + (long) ( timeout * (99.0/100.0));
+        realEndTime = startTime + timeout;
+        expectedEndTime = realEndTime;
 
         if (MC.length > 0) {
             MNKCell choice;
@@ -203,10 +206,9 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
 
     protected void printStats(final AlphaBetaOutcome outcome ) {
 
-        long timeoutEndTime = startTime + timeout;
-
         long elapsed = endTime-startTime;
-        long timeLeft = (timeoutEndTime-endTime);
+        long timeLeftFromPrediction = (realEndTime - expectedEndTime);
+        long timeLeft = (realEndTime - endTime);
 
         float markedCount = round+1;
         float total = currentBoard.M * currentBoard.N;
@@ -220,15 +222,28 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
         maxWorkTime = Math.max(maxWorkTime, elapsed);
         minWorkTime = Math.min(minWorkTime, elapsed);
 
-        Debug.println( "Euristic: " +  (outcome != null ? outcome.eval : null) + "\t" +
-                "Decision made in " + (elapsed/1000.0) + "\t" +
-                "Left Time: " + (timeLeft/1000.0) + "\t" +
-                "Weighted Average Time: " + (wAverageWorkTime) + "\t" +
-                "Average Time: " + (averageWorkTime/1000.0) + "\t" +
-                "Total Time: " + (totalWorkTime/1000.0) + "\t" +
-                "Max time: " + (maxWorkTime/1000.0) + "\t" +
-                "Min Time: " + (minWorkTime/1000.0)
-        );
+        List<String[]> rows = new LinkedList<>();
+        rows.add(new String[]{
+                "Decision Time (ms)",
+                "Left Time (ms)",
+                "Prediction Left time (ms)",
+                "MIN work time (s)",
+                "AVG work time (s)",
+                "MAX work time (s)",
+                "TOTAL work time (s)",
+                "Heuristic",
+        });
+        rows.add(new String[]{
+                String.valueOf(elapsed),
+                String.valueOf(timeLeft),
+                String.valueOf(timeLeftFromPrediction),
+                String.valueOf(minWorkTime/1000f),
+                String.valueOf(averageWorkTime/1000f),
+                String.valueOf(maxWorkTime/1000f),
+                String.valueOf(totalWorkTime/1000f),
+                String.valueOf(outcome != null ? (outcome.state + ": " + outcome.eval) : null),
+        });
+        Debug.println(Utils.tableToString(rows));
     }
 
     public int getSimulatedRound() {
@@ -304,6 +319,18 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
             int i = 0;
             for ( MNKCell move : getMovesCandidates()) {
 
+                // estimate 1ms per depth (Upperbound) required to exit
+                if (System.currentTimeMillis() + depth >= endTime ) {
+                    if( DEBUG_SHOW_INFO )
+                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
+                    // NOTE: this behavior can be obtained converting this recursive function to an iterative one
+                    // but in this way is more readable for documentation purpose
+                    if( USE_FAST_REWIND )
+                        throw new EarlyExitException("Exiting quickly");
+                    else
+                        break;
+                }
+
                 mark(move);
 
                 outcome = alphaBetaPruning(!shouldMaximize, a, b, depth + 1, depthLeft - 1, endTime);
@@ -328,18 +355,6 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 // if first run or just override best outcome, then replace move
                 if( bestOutcome.move == outcome.move || bestOutcome.move == null)
                     bestOutcome.move = move;
-
-                // estimate 1ms per depth (Upperbound) required to exit
-                if (System.currentTimeMillis() + depth >= endTime ) {
-                    if( DEBUG_SHOW_INFO )
-                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
-                    // NOTE: this behavior can be obtained converting this recursive function to an iterative one
-                    // but in this way is more readable for documentation purpose
-                    if( USE_FAST_REWIND )
-                        throw new EarlyExitException("Exiting quickly");
-                    else
-                        break;
-                }
 
                 if (b <= a) { // a or b cutoff ( can't get better results )
                     break;

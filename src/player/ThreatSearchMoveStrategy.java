@@ -278,11 +278,12 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         startingRoundMC = MC;
 
         // pre calculate expected work time
-        float realTimeout = (float)timeout * (98f/100f);
-        float expectedTimeRequiredToExit = (estimatedPercentOfTimeRequiredToExit * realTimeout);
+        float expectedTimeRequiredToExit = (estimatedPercentOfTimeRequiredToExit * timeout)
+                + maxDepthSearch*(float)Math.log( Math.max(currentBoard.getFreeCellsCount(), currentBoard.getMarkedCellsCount()));
 
         startTime = System.currentTimeMillis();
-        expectedEndTime = startTime + (long) ( realTimeout - expectedTimeRequiredToExit );
+        realEndTime = startTime + timeout;
+        expectedEndTime = realEndTime - (long)expectedTimeRequiredToExit;
 
         if( DEBUG_SHOW_INFO )
             Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
@@ -325,7 +326,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
             printStats(lastResult);
         if( DEBUG_SHOW_BOARD )
             Debug.println( "after move:\n" + boardToString() );
-        if( Debug.DEBUG_ENABLED && currentBoard.gameState() != MNKGameState.OPEN ){
+        if( Debug.DEBUG_ENABLED && DEBUG_SHOW_BOARD && currentBoard.gameState() != MNKGameState.OPEN ){
             Debug.println( "Final board:\n" + boardToString() );
         }
 
@@ -411,7 +412,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
         }
         else {
             if( DEBUG_SHOW_INFO )
-                Debug.println( "First Move: Move to a fixed corner");
+                Debug.println( "First Move: Move to center");
             AlphaBetaOutcome outcome = new AlphaBetaOutcome();
             outcome.move = new MNKCell( currentBoard.M / 2, currentBoard.N/2 ); outcome.depth = 0; outcome.eval = 0;
             return outcome;
