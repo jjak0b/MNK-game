@@ -18,7 +18,7 @@ import java.util.TreeMap;
  * on {@link #postSearch()} if {@link #isStateValid()} == false
  * or on {@link #restore} otherwise
  */
-public class CachedSearchMoveStrategy extends IterativeDeepeningSearchMoveStrategy {
+public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMoveStrategy {
 
     protected HashableBoardState currentState;
     protected Utils.MatrixRowMap matrixMap;

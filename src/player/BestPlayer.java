@@ -13,7 +13,7 @@ public class BestPlayer implements MNKPlayer {
 
     @Override
     public void initPlayer(int M, int N, int K, boolean first, int timeout_in_secs) {
-        setSearchMoveStrategy(new CachedSearchMoveStrategy());
+        setSearchMoveStrategy(new TranspositionSearchMoveStrategy());
 
         moveStrategy.init(M, N, K, first, timeout_in_secs);
     }
@@ -45,7 +45,7 @@ public class BestPlayer implements MNKPlayer {
     public void test() {
 
         MNKCell[] candidates;
-        CachedSearchMoveStrategy player = (CachedSearchMoveStrategy) moveStrategy;
+        TranspositionSearchMoveStrategy player = (TranspositionSearchMoveStrategy) moveStrategy;
         int M = 10, N=10, K=5;
         player.init(M, N, K, true, 15);
 
