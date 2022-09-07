@@ -980,11 +980,11 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
         for (int side = 0; side < 2; side++) {
             scoreOnSide[ side ] = 0;
             // scenario 0;: win
-            if (leftOnTotal <= 0 ) {
-                scenarios[side] = 0;
-            }
+            // if (leftOnTotal <= 0 ) {
+            //    scenarios[side] = 0;
+            // }
             // scenario 1: 1 move left in any breadth
-            else if (leftOnSide[side] == 1 ) {
+            if (leftOnSide[side] == 1 ) {
                 scenarios[side] = 1;
             }
             // scenario 2: 2 moves left and breadth[side] == 1
@@ -1009,9 +1009,9 @@ public class Threat extends Streak implements ThreatInfo, SideThreatInfo {
             // Debug.println("debug streak side " + side + " of streak: " + this + "\n can win: " + canWinFactor[side] + "\n" + getFreeOnSide(side) + " - " + getOtherMarkedOnSide(side) + " - " + getOtherFreeOnSide(side) );
             // Debug.println("bonus score: \n scenario:" + scenarios[side] + "\nbonus:" + bonusScore[side]);
             switch (scenarios[side]) {
-                case 0:
-                    scoreOnSide[side] = Integer.MAX_VALUE / 2;
-                    break;
+                // case 0:
+                //    scoreOnSide[side] = Integer.MAX_VALUE / 2;
+                //    break;
                 case 1:
                 case 2:
                     scoreOnSide[side] += bonusScore[ side ];
