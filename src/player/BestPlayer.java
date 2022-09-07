@@ -34,7 +34,7 @@ public class BestPlayer implements MNKPlayer {
 
     @Override
     public String playerName() {
-        return "Hotspot";
+        return "Hotspot seeker";
     }
 
     @Override

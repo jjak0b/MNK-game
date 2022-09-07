@@ -5,8 +5,8 @@ import mnkgame.MNKGameState;
 
 public class AlphaBetaOutcome implements Comparable<AlphaBetaOutcome> {
     public int eval;
-    public MNKCell move;
     public int depth;
+    public MNKCell move;
     public MNKGameState state;
 
     public int getWeightedValue() {

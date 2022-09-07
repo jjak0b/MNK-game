@@ -5,6 +5,22 @@ import mnkgame.MNKCellState;
 
 import java.util.*;
 
+/**
+ * This class implements a moves ordering Heuristic using a threat detection sorting moves by a threat score heuristic.
+ * After each updated move will be set the max score of near threats, so moves are sort by threat level.
+ * For each direction (vertical, horizontal, diagonal, and antiphonal) each move score depends by threats' score near them
+ * The game board doesn't contain the moves but the segments of aligned moves and on the edge moves
+ * of each aligned free segment are set the move sort priority (threat level) based on near
+ * adjacent threat segments that can complete the streak on both sides of same direction's dimension.
+ * After a {@link #mark}, Some segments of interest are explored starting from the chosen move up to a fixed breadth
+ * for each side (left and right sides) of each direction; so if a Streak can be completed then a score
+ * will be assigned based on the count of ways that be countered on future moves by the opponent player.
+ *
+ * The free moves order are provided by {@link #getFree()} but the reference must be read-only, otherwise must be clones to iterate over it.
+ * The order is always updated for each {@link #mark} and restored on respective {@link #unMark}.
+ * The best treat can be retrieved by {@link #getBestThreat(int, int)}.
+ *
+ */
 public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreatDetectionLogic.Threat>, Comparator<ScanThreatDetectionLogic.Threat> {
 
     protected int M, N, K;

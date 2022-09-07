@@ -9,28 +9,30 @@ import java.util.Iterator;
 import java.util.PriorityQueue;
 
 /**
- * This class consider
+ * This class implements a moves ordering behavior using a threat detection and sort moves by a threat score.
+ * for each each move will be set the max score of adjacent threats, so moves are sort by threat level (see {@link ScanThreatDetectionLogic} )
+ * <pre>Let n = M*N ... 1 free moves per {@link #search()} call</pre>
  *  <ul>
  *      <li>T(u) the time cost required for each update in {@link #mark} and {@link #unMark} operations
  *          <ul>
- *              <li>Using standard {@link PriorityQueue} API: <code>O( N*M )</code></li>
- *              <li>Using optimal API: <code>O( log(M+N) )</code></li>
+ *              <li>Using standard {@link PriorityQueue} API: <code>O( n )</code></li>
+ *              <li>Using optimal Priority Queue API: <code>O( log(M+N) )</code></li>
  *          </ul>
  *      </li>
- *      <li>T(it) the time cost required for each iteration while iterating {@link #getMovesCandidates()} result as O( log( M*N )  )</li>
+ *      <li>T(it) the time cost required for each iteration while iterating {@link #getMovesCandidates()} result as O( log( n - it )  )</li>
  *  </ul>
  * So {@link #search()} find the best next move in
  *  <ul>
  *      <li>Worst Case
  *          <ul>
- *              <li>Using standard {@link PriorityQueue} API: <code>O( ((M*N)^2 )! ) on worst case</code></li>
- *              <li>Using optimal API: <code>O( ( (M*N) * log (M+N) )! )</code></li>
+ *              <li>Using standard {@link PriorityQueue} API: <code>O( n! * (M+N) ) on worst case</code></li>
+ *              <li>Using an optimal Priority Queue API: <code>O( ( n! * log (M+N) ) )</code></li>
  *          </ul>
  *      </li>
- *      <li>Best Case - can happen often, as this class use a move ordering heuristic (see {@link #getMovesCandidates()})
+ *      <li>Best / Average Case - can happen often, as this class use a move ordering heuristic (see {@link #getMovesCandidates()})
  *          <ul>
- *              <li>Using standard {@link PriorityQueue} API: <code>O( √( ((M*N)^2 )! ) )</code></li>
- *              <li>Using optimal API: <code>O( √( (M*N * log(M+N))! ) )</code></li>
+ *              <li>Using standard {@link PriorityQueue} API: <code>O( √( n! * (M+N) ) )</code></li>
+ *              <li>Using an optimal Priority Queue API: <code>O( √( n! * log(M+N) ) )</code></li>
  *          </ul>
  *      </li>
  *  </ul>
