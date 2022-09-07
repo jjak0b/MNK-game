@@ -299,6 +299,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
             Debug.println( "after opponent move:\n" + boardToString() );
 
         lastResult = null;
+        isEarlyExitStarted = false;
     }
 
     /**

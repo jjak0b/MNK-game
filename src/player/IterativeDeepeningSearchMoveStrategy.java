@@ -85,13 +85,13 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
                 );
                 // keep last depth that don't cause an EarlyExit
                 lastMaxDepth = maxDepth;
+                isOutOfTime = isEarlyExitStarted;
                 if( DEBUG_SHOW_DECISION_INFO ){
                     Debug.println(Utils.ConsoleColors.CYAN +
                             "Search up to depth " + maxDepth + " end with choice :" + outcome
                             + Utils.ConsoleColors.RESET
                     );
                 }
-
             }
             catch (EarlyExitException e) {
                 // set in invalid state, because if running out time, internal data structure are in in invalid state

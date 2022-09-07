@@ -32,6 +32,8 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
     protected long expectedEndTime;
     protected long endTime;
     protected long realEndTime;
+    protected long startingExitTime;
+    protected boolean isEarlyExitStarted;
 
     // stats
     protected float wTotalWorkTime;
@@ -112,7 +114,8 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
         averageWorkTime = 0;
         minWorkTime = Long.MAX_VALUE;
         maxWorkTime = 0;
-
+        startingExitTime = 0;
+        isEarlyExitStarted = false;
         maxDepthSearch = 6;
 
     }
@@ -160,6 +163,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
         }
         ++round;
         lastResult = null;
+        isEarlyExitStarted = false;
     }
 
     /**
@@ -227,6 +231,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 "Decision Time (ms)",
                 "Left Time (ms)",
                 "Prediction Left time (ms)",
+                "Exit Time (ms)",
                 "MIN work time (s)",
                 "AVG work time (s)",
                 "MAX work time (s)",
@@ -237,6 +242,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 String.valueOf(elapsed),
                 String.valueOf(timeLeft),
                 String.valueOf(timeLeftFromPrediction),
+                String.valueOf(endTime-startingExitTime),
                 String.valueOf(minWorkTime/1000f),
                 String.valueOf(averageWorkTime/1000f),
                 String.valueOf(maxWorkTime/1000f),
@@ -314,21 +320,15 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                     bestOutcome = null,
                     outcome = null;
 
-            // Debug.println( getPlayerByIndex( shouldMaximize ? 0 : 1 )+ " Move " + depth );
-
-            int i = 0;
             for ( MNKCell move : getMovesCandidates()) {
-
                 // estimate 1ms per depth (Upperbound) required to exit
-                if (System.currentTimeMillis() + depth >= endTime ) {
+                if (USE_FAST_REWIND && ( isEarlyExitStarted || (isEarlyExitStarted = (startingExitTime = System.currentTimeMillis()) >= endTime) ) ) {
                     if( DEBUG_SHOW_INFO )
-                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly");
+                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly - depth " + depth + Utils.ConsoleColors.RESET);
+                    // This is required here because if USE_FAST_REWIND, then we don't have to provide a return value
                     // NOTE: this behavior can be obtained converting this recursive function to an iterative one
                     // but in this way is more readable for documentation purpose
-                    if( USE_FAST_REWIND )
-                        throw new EarlyExitException("Exiting quickly");
-                    else
-                        break;
+                    throw new EarlyExitException("Exiting quickly");
                 }
 
                 mark(move);
@@ -342,11 +342,13 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 if (!shouldMaximize) {
                     bestOutcome = bestOutcome != null ? min(bestOutcome, outcome) : outcome;
                     b = Math.min(b, outcome.eval);
+                    if( USE_FAST_REWIND && depth == 0 ) lastResult = new AlphaBetaOutcome(bestOutcome);
                 }
                 // maximize
                 else {
                     bestOutcome = bestOutcome != null ? max(bestOutcome, outcome) : outcome;
                     a = Math.max(a, outcome.eval);
+                    if( USE_FAST_REWIND && depth == 0 ) lastResult = new AlphaBetaOutcome(bestOutcome);
                 }
 
                 if( DEBUG_SHOW_MOVES_RESULT_ON_ROOT && depth == 0 )
@@ -360,7 +362,13 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                     break;
                 }
 
-                // Debug.println( getPlayerByIndex( isMyTurn ? 0 : 1 )+ " Move " + depth );
+                if (!USE_FAST_REWIND && ( isEarlyExitStarted || (isEarlyExitStarted = (startingExitTime = System.currentTimeMillis()) >= endTime) ) ) {
+                    // This is required here because if !USE_FAST_REWIND, then we can provide a valid best outcome
+                    if( DEBUG_SHOW_INFO )
+                        Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly - depth " + depth  + Utils.ConsoleColors.RESET);
+                    break;
+                }
+
             }
             return bestOutcome;
         }
