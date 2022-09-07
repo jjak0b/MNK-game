@@ -310,7 +310,7 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
      */
     @Override
     public void postSearch() {
-        if( Debug.DEBUG_ENABLED ) {
+        if( DEBUG_SHOW_BOARD ) {
             if(!isStateValid()){
                 if( DEBUG_SHOW_INFO )
                     Debug.println(Utils.ConsoleColors.YELLOW + "Start Restoring current state");
