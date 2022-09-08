@@ -112,17 +112,12 @@ public class ThreatSearchMoveStrategy extends AlphaBetaPruningSearchMoveStrategy
     protected void initTrackingBoard(int M, int N, int K) {
         setBoard(new EBoardWithGameEnd(M, N, K) {
             @Override
-            boolean isGameEnded() {
-                // int maxStreak = 0;
+            public boolean isGameEnded() {
                 int threatCountWihtNoMoveLeft = 0;
                 for ( int directionType : Utils.DIRECTIONS ) {
                     int[] movesLeftCount = threatDetectionLogic.getMovesLeftArrayCount(currentPlayer, directionType);
                     threatCountWihtNoMoveLeft = Math.max(threatCountWihtNoMoveLeft, movesLeftCount[0]);
-                    // ThreatInfo threat = detectionLogic.getBestThreat(currentPlayer, directionType);
-                    // if( threat != null) maxStreak = Math.max( maxStreak, threat.getStreakCount() );
                 }
-
-                // maxStreak >= K
                 return threatCountWihtNoMoveLeft > 0;
             }
         });

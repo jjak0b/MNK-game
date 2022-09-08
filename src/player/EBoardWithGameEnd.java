@@ -62,5 +62,5 @@ public abstract class EBoardWithGameEnd extends EBoard {
         }
     }
 
-    abstract boolean isGameEnded();
+    public abstract boolean isGameEnded();
 }

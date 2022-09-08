@@ -83,4 +83,13 @@ public class EBoard extends MNKBoard implements Board {
         return !(v[0] < 0 || v[0] >= M || v[1] < 0 || v[1] >= N);
     }
 
+
+    @Override
+    public String toString() {
+        String s = "";
+        for (int i = 0; i < states().length; i++) {
+            s += Utils.toString( states()[ i ] ) + "\n";
+        }
+        return s;
+    }
 }
