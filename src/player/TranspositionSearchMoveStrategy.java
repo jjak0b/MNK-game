@@ -23,16 +23,23 @@ public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMov
     protected HashableBoardState currentState;
     protected Utils.MatrixRowMap matrixMap;
     protected TreeMap<Integer, HashMap<BigInteger, TranspositionData>> transpositionsMap;
-    protected int TABLE_SIZE;
+    protected int currentTableSize;
+    protected int maxTableSize;
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
 
+        maxTableSize = 1 << 23; //  Math.ceil((M*N*K) / 0.75)
+        currentTableSize = (M * N);
+
         matrixMap = new Utils.MatrixRowMap(M, N);
         currentState = new HashableBoardState();
-        TABLE_SIZE = (int)Math.pow(2,23); //  Math.ceil((M*N*K) / 0.75)
         transpositionsMap = new TreeMap<>(Integer::compare);
+
+        final int initialTablesCountToInit = M * N;
+        for( int round = 1; round <= initialTablesCountToInit; round++ )
+            initTranspositionTableForRoundIfAbsent( round );
     }
 
     /**
@@ -50,9 +57,26 @@ public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMov
      * @return The k-th transposition table
      */
     protected HashMap<BigInteger, TranspositionData> getTranspositionTable() {
-        return transpositionsMap.computeIfAbsent(getSimulatedRound(), age -> {
-            TABLE_SIZE = currentBoard.getFreeCellsCount(); // M*N - age
-            return new HashMap<>(TABLE_SIZE);
+        return initTranspositionTableForRoundIfAbsent(getSimulatedRound());
+    }
+
+    private HashMap<BigInteger, TranspositionData> initTranspositionTableForRoundIfAbsent( int round ) {
+        final int movesLeft = (currentBoard.M * currentBoard.N) - round;
+        return transpositionsMap.computeIfAbsent(round, age -> {
+            // limit table size growing // n * (n-1)! ... up to maxTableSize
+            if( currentTableSize < maxTableSize ) {
+                try {
+                    currentTableSize = Math.multiplyExact(currentTableSize, movesLeft);
+                    if( currentTableSize > maxTableSize ) currentTableSize = maxTableSize;
+                }
+                catch (ArithmeticException ex) {
+                    currentTableSize = maxTableSize;
+                }
+                return new HashMap<>(currentTableSize+1, 1);
+            }
+            else {
+                return new HashMap<>(currentTableSize);
+            }
         });
     }
 
@@ -64,13 +88,13 @@ public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMov
      * </ul>
      */
     protected void flushTranspositionTable() {
-        transpositionsMap.headMap(round).clear();
-        transpositionsMap.remove(round);
+        transpositionsMap.headMap(round, true).clear();
     }
 
     @Override
-    public void restore(MNKCell[] FC, MNKCell[] MC) {
-        super.restore(FC, MC);
+    public void initSearch(MNKCell[] FC, MNKCell[] MC) {
+        super.initSearch(FC, MC);
+
         flushTranspositionTable();
     }
 
