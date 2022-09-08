@@ -322,7 +322,10 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
 
             for ( MNKCell move : getMovesCandidates()) {
                 // estimate 1ms per depth (Upperbound) required to exit
-                if (USE_FAST_REWIND && ( isEarlyExitStarted || (isEarlyExitStarted = (startingExitTime = System.currentTimeMillis()) >= endTime) ) ) {
+                if (USE_FAST_REWIND && ( isEarlyExitStarted || System.currentTimeMillis() >= endTime ) ) {
+                    if(!isEarlyExitStarted) {
+                        isEarlyExitStarted = true; startingExitTime = System.currentTimeMillis();
+                    }
                     if( DEBUG_SHOW_INFO )
                         Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly - depth " + depth + Utils.ConsoleColors.RESET);
                     // This is required here because if USE_FAST_REWIND, then we don't have to provide a return value
@@ -362,7 +365,10 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                     break;
                 }
 
-                if (!USE_FAST_REWIND && ( isEarlyExitStarted || (isEarlyExitStarted = (startingExitTime = System.currentTimeMillis()) >= endTime) ) ) {
+                if (!USE_FAST_REWIND && ( isEarlyExitStarted || System.currentTimeMillis() >= endTime ) ) {
+                    if(!isEarlyExitStarted) {
+                        isEarlyExitStarted = true; startingExitTime = System.currentTimeMillis();
+                    }
                     // This is required here because if !USE_FAST_REWIND, then we can provide a valid best outcome
                     if( DEBUG_SHOW_INFO )
                         Debug.println(Utils.ConsoleColors.YELLOW + "Exiting quickly - depth " + depth  + Utils.ConsoleColors.RESET);
