@@ -117,6 +117,8 @@ public class IterativeDeepeningSearchMoveStrategy extends ThreatSearchMoveStrate
         }
 
         endTime = partialEndTime;
+        if( !isOutOfTime )
+            startingExitTime = endTime;
 
         return outcome;
     }

@@ -197,8 +197,10 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
 
                 int cmp;
                 cmp = Integer.compare(freeCellsPrioritiesCache[ o1.i ][ o1.j ], freeCellsPrioritiesCache[ o2.i ][ o2.j ]);
-                // cmp = Integer.compare(minPlayerMovesLeftCache[ o1.i ][ o1.j ], minPlayerMovesLeftCache[ o2.i ][ o2.j ]);
-                if( cmp == 0 ) Utils.compare(o1, o2); // make it stable
+                if( cmp == 0 )
+                    cmp = Integer.compare(minPlayerMovesLeftCache[ o1.i ][ o1.j ], minPlayerMovesLeftCache[ o2.i ][ o2.j ]);
+                if( cmp == 0 )
+                    cmp = Utils.compare(o1, o2); // make it stable
                 return cmp;
                 // return
             }
@@ -219,7 +221,13 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
 
 
         // Init Not needed on java
-        // for (int i = 0; i < playerMovesLeftsCount.length; i++) playerMovesLeftsCount[i] = 0;
+        for (int p = 0; p < 2; p++) {
+            for (int directionType : Utils.DIRECTIONS){
+                for (int k = 0; k < K; k++) {
+                    playerMovesLeftsCount[p][directionType][k] = 0;
+                }
+            }
+        }
 
         // On worst case a free block can be split to 3 blocks after a mark/unmark -> so 1 to remove and 3 to add or 3 to remove and 1 to add
         // but near blocks have to update their score, so needs to update their positions on priority queues

@@ -213,10 +213,10 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
         long elapsed = endTime-startTime;
         long timeLeftFromPrediction = (realEndTime - expectedEndTime);
         long timeLeft = (realEndTime - endTime);
-
+        long exitTime = endTime - startingExitTime;
         float markedCount = round+1;
         float total = currentBoard.M * currentBoard.N;
-        float weight = markedCount / total;
+        float weight = (total-markedCount) / total;
 
         totalWorkTime += elapsed;
         wTotalWorkTime += (elapsed/1000.0) * weight;
@@ -242,7 +242,7 @@ public class AlphaBetaPruningSearchMoveStrategy implements SearchMoveStrategy<MN
                 String.valueOf(elapsed),
                 String.valueOf(timeLeft),
                 String.valueOf(timeLeftFromPrediction),
-                String.valueOf(endTime-startingExitTime),
+                String.valueOf(exitTime),
                 String.valueOf(minWorkTime/1000f),
                 String.valueOf(averageWorkTime/1000f),
                 String.valueOf(maxWorkTime/1000f),
