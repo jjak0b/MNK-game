@@ -42,41 +42,4 @@ public class BestPlayer implements MNKPlayer {
         return playerName().hashCode();
     }
 
-    public void test() {
-
-        MNKCell[] candidates;
-        TranspositionSearchMoveStrategy player = (TranspositionSearchMoveStrategy) moveStrategy;
-        int M = 10, N=10, K=5;
-        player.init(M, N, K, true, 15);
-
-        MNKCell[] cells = new MNKCell[]{
-                new MNKCell(M/2, N/2),
-                new MNKCell(0, M/2),
-                new MNKCell(M/2, M/2 +2),
-                new MNKCell(0, M/2 +1),
-                new MNKCell(M/2, M/2 +1),
-        };
-
-        for(int directionType : Utils.DIRECTIONS) {
-            Debug.println(Utils.toString(player.threatDetectionLogic.blocksOnDirection[directionType]));
-        }
-        for( MNKCell cell : cells ) {
-            //candidates = player.getCellCandidates(null);
-            // Debug.println(Arrays.toString(candidates));
-            player.mark(cell);
-
-            for(int directionType : Utils.DIRECTIONS) {
-                Debug.println(Utils.toString(player.threatDetectionLogic.blocksOnDirection[directionType]));
-            }
-
-            Debug.println(player.boardToString());
-        }
-
-        for( MNKCell cell : cells ) {
-            // candidates = player.getCellCandidates(null);
-            // Debug.println(Arrays.toString(candidates));
-            player.unMark();
-            Debug.println(player.boardToString());
-        }
-    }
 }
