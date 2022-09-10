@@ -198,8 +198,6 @@ public class ScanThreatDetectionLogic implements ThreatDetectionLogic<ScanThreat
                 int cmp;
                 cmp = Integer.compare(freeCellsPrioritiesCache[ o1.i ][ o1.j ], freeCellsPrioritiesCache[ o2.i ][ o2.j ]);
                 if( cmp == 0 )
-                    cmp = Integer.compare(minPlayerMovesLeftCache[ o1.i ][ o1.j ], minPlayerMovesLeftCache[ o2.i ][ o2.j ]);
-                if( cmp == 0 )
                     cmp = Utils.compare(o1, o2); // make it stable
                 return cmp;
                 // return
