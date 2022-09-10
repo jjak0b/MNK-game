@@ -24,13 +24,12 @@ public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMov
     protected Utils.MatrixRowMap matrixMap;
     protected TreeMap<Integer, HashMap<BigInteger, TranspositionData>> transpositionsMap;
     protected int currentTableSize;
-    protected int maxTableSize;
+    protected int maxTableSize = 1 << 20; // fixed
 
     @Override
     public void init(int M, int N, int K, boolean first, int timeout_in_secs) {
         super.init(M, N, K, first, timeout_in_secs);
 
-        maxTableSize = 1 << 23; //  Math.ceil((M*N*K) / 0.75)
         currentTableSize = (M * N);
 
         matrixMap = new Utils.MatrixRowMap(M, N);
@@ -75,7 +74,7 @@ public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMov
                 return new HashMap<>(currentTableSize+1, 1);
             }
             else {
-                return new HashMap<>(currentTableSize);
+                return new HashMap<>(maxTableSize+1, 1);
             }
         });
     }
@@ -177,6 +176,7 @@ public class TranspositionSearchMoveStrategy extends IterativeDeepeningSearchMov
 
         outcome = super.alphaBetaPruning(shouldMaximize, a, b, depth, depthLeft, endTime);
 
+        if( isEarlyExitStarted ) return outcome;
 
         // minimize
         if (outcome.eval <= a) {
